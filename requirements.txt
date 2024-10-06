@@ -1,0 +1,3 @@
+homeassistant @ https://github.com/home-assistant/core/archive/refs/tags/2024.10.1.zip#sha256=aa8e3aacb985c92b38201df096295736c7b828b5cb868d760a0fe5d82deeb345
+zha==0.0.34
+zigpy==0.67.0
