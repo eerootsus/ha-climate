@@ -12,6 +12,7 @@ ENDPOINT_ID = 1
 CLUSTER_ID_THERMOSTAT = 0x0201
 ATTR_RADIATOR_COVERED = 0x4016
 CLUSTER_TYPE = "in"
+LABEL_RADIATOR_COVERED = "radiator_covered"
 
 
 hass: HomeAssistant
@@ -60,18 +61,20 @@ async def danfoss():
             log.error(f"Failed to read radiator covered attribute for device {device.name_by_user} ({device.id})")
             continue
 
-        if success.get(ATTR_RADIATOR_COVERED):
-            log.info(f"Radiator covered attribute is TRUE for device {device.name_by_user} ({device.id})")
+        should_be_true = LABEL_RADIATOR_COVERED in device.labels
+
+        if success.get(ATTR_RADIATOR_COVERED) == should_be_true:
+            log.info(f"Radiator covered attribute is correct ({should_be_true}) for device {device.name_by_user} ({device.id})")
             continue
 
         response = zha_device.write_zigbee_attribute(
-            ENDPOINT_ID, CLUSTER_ID_THERMOSTAT, ATTR_RADIATOR_COVERED, True, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
+            ENDPOINT_ID, CLUSTER_ID_THERMOSTAT, ATTR_RADIATOR_COVERED, should_be_true, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
         )
 
         if response is None:
             log.error(f"Failed to write radiator covered attribute for device {device.name_by_user} ({device.id})")
             continue
 
-        log.info(f"Successfully set radiator covered attribute TRUE for device {device.name_by_user} ({device.id})")
+        log.info(f"Successfully set radiator covered attribute {should_be_true} for device {device.name_by_user} ({device.id})")
 
     log.info("Done checking radiator covered attributes")
