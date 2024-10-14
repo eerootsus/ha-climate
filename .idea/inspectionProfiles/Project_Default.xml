@@ -5,6 +5,7 @@
       <option name="ignoredIdentifiers">
         <list>
           <option value="danfoss.service" />
+          <option value="danfoss.time_trigger" />
         </list>
       </option>
     </inspection_tool>
