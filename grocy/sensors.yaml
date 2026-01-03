@@ -9,7 +9,7 @@
       unique_id: grocy_chores_raw
       value_template: "{{ value_json | length }}"
 
-    - name: "Chore Laundry"
+    - name: "Pesutoimkond"
       unique_id: chore_laundry
       icon: mdi:washing-machine
       value_template: >
@@ -17,7 +17,7 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
-    - name: "Chore Trash"
+    - name: "Prügitoimkond"
       unique_id: chore_trash
       icon: mdi:trash-can
       value_template: >
@@ -25,7 +25,7 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
-    - name: "Chore Bathroom"
+    - name: "Tualetitoimkond"
       unique_id: chore_bathroom
       icon: mdi:toilet
       value_template: >
@@ -33,7 +33,7 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
-    - name: "Chore Plants"
+    - name: "Floratoimkond"
       unique_id: chore_plants
       icon: mdi:flower
       value_template: >
@@ -41,7 +41,7 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
-    - name: "Chore Cat"
+    - name: "Kassitoimkond"
       unique_id: chore_cat
       icon: mdi:cat
       value_template: >
@@ -49,7 +49,7 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
-    - name: "Chore Outdoor"
+    - name: "Õuetoimkond"
       unique_id: chore_outdoor
       icon: mdi:tree
       value_template: >
@@ -57,7 +57,7 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
-    - name: "Chore Dust"
+    - name: "Tolmutoimkond"
       unique_id: chore_dust
       icon: mdi:vacuum
       value_template: >
@@ -65,7 +65,7 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
-    - name: "Dinner Today"
+    - name: "Õhtusöök täna"
       unique_id: dinner_today
       icon: mdi:silverware-clean
       value_template: >
@@ -76,7 +76,7 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
-    - name: "Dinner Tomorrow"
+    - name: "Õhtusöök homme"
       unique_id: dinner_tomorrow
       icon: mdi:silverware
       value_template: >
