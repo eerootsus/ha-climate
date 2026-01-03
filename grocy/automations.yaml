@@ -34,6 +34,10 @@
     - service: rest_command.execute_grocy_chore
       data:
         chore_id: 8
+    - delay: "00:00:02"
+    - service: rest_command.execute_grocy_chore
+      data:
+        chore_id: 16
     - delay: "00:00:05"
     - service: homeassistant.update_entity
       target:
@@ -86,7 +90,8 @@
                   'chore_bathroom': 'Tualetitoimkond',
                   'chore_plants': 'Floratoimkond',
                   'chore_cat': 'Kassitoimkond',
-                  'chore_outdoor': 'Õuetoimkond'
+                  'chore_outdoor': 'Õuetoimkond',
+                  'chore_dust': 'Tolmutoimkond'
                 } %}
                 {% set ns = namespace(list=[]) %}
                 {% for sensor_id, display_name in chore_map.items() %}

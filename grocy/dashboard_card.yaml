@@ -14,6 +14,7 @@ content: |
   | Floratoimkond | {{ states('sensor.chore_plants') }} |
   | Kassitoimkond | {{ states('sensor.chore_cat') }} |
   | Õuetoimkond | {{ states('sensor.chore_outdoor') }} |
+  | Tolmutoimkond | {{ states('sensor.chore_dust') }} |
 
   ## Õhtusöök täna
   **{{ states('sensor.dinner_today') }}**
@@ -36,6 +37,8 @@ entities:
     name: Kassitoimkond
   - entity: sensor.chore_outdoor
     name: Õuetoimkond
+  - entity: sensor.chore_dust
+    name: Tolmutoimkond
   - type: divider
   - entity: sensor.dinner_today
     name: Õhtusöök täna
@@ -69,3 +72,7 @@ cards:
     entity: sensor.chore_outdoor
     name: Õu
     icon: mdi:tree
+  - type: entity
+    entity: sensor.chore_dust
+    name: Tolm
+    icon: mdi:vacuum

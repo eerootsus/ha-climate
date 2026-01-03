@@ -59,6 +59,13 @@ rotating_chores:
     rotation: [Eero, Kätlyn]
     initial_assignee: Eero
 
+  # Dust/vacuum - all 3 people rotate
+  - grocy_name: Tolmutoimkond
+    grocy_id: 16
+    ha_sensor_id: chore_dust
+    rotation: [Eero, Kätlyn, Lola]
+    initial_assignee: Lola
+
 # Dinner Schedule (fixed by weekday)
 dinner_schedule:
   monday:

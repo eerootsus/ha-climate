@@ -57,6 +57,14 @@
           {{ c.next_execution_assigned_user.first_name }}
         {% endfor %}
 
+    - name: "Chore Dust"
+      unique_id: chore_dust
+      icon: mdi:vacuum
+      value_template: >
+        {% for c in value_json if c.chore_name == 'Tolmutoimkond' %}
+          {{ c.next_execution_assigned_user.first_name }}
+        {% endfor %}
+
     - name: "Dinner Today"
       unique_id: dinner_today
       icon: mdi:silverware-clean
