@@ -1,0 +1,69 @@
+# Grocy REST Sensors
+
+- resource: http://192.168.1.85:9283/api/chores
+  headers:
+    GROCY-API-KEY: !secret grocy_api_key
+  scan_interval: 3600
+  sensor:
+    - name: "Grocy Chores Raw"
+      unique_id: grocy_chores_raw
+      value_template: "{{ value_json | length }}"
+
+    - name: "Chore Laundry"
+      unique_id: chore_laundry
+      icon: mdi:washing-machine
+      value_template: >
+        {% for c in value_json if c.chore_name == 'Pesutoimkond' %}
+          {{ c.next_execution_assigned_user.first_name }}
+        {% endfor %}
+
+    - name: "Chore Trash"
+      unique_id: chore_trash
+      icon: mdi:trash-can
+      value_template: >
+        {% for c in value_json if c.chore_name == 'Prügitoimkond' %}
+          {{ c.next_execution_assigned_user.first_name }}
+        {% endfor %}
+
+    - name: "Chore Bathroom"
+      unique_id: chore_bathroom
+      icon: mdi:toilet
+      value_template: >
+        {% for c in value_json if c.chore_name == 'Tualetitoimkond' %}
+          {{ c.next_execution_assigned_user.first_name }}
+        {% endfor %}
+
+    - name: "Chore Plants"
+      unique_id: chore_plants
+      icon: mdi:flower
+      value_template: >
+        {% for c in value_json if c.chore_name == 'Floratoimkond' %}
+          {{ c.next_execution_assigned_user.first_name }}
+        {% endfor %}
+
+    - name: "Chore Cat"
+      unique_id: chore_cat
+      icon: mdi:cat
+      value_template: >
+        {% for c in value_json if c.chore_name == 'Kassitoimkond' %}
+          {{ c.next_execution_assigned_user.first_name }}
+        {% endfor %}
+
+    - name: "Chore Outdoor"
+      unique_id: chore_outdoor
+      icon: mdi:tree
+      value_template: >
+        {% for c in value_json if c.chore_name == 'Õuetoimkond' %}
+          {{ c.next_execution_assigned_user.first_name }}
+        {% endfor %}
+
+    - name: "Dinner Today"
+      unique_id: dinner_today
+      icon: mdi:food
+      value_template: >
+        {% set weekdays = ['esmaspäev', 'teisipäev', 'kolmapäev', 'neljapäev', 'reede', 'laupäev', 'pühapäev'] %}
+        {% set today = weekdays[now().weekday()] %}
+        {% set chore_name = 'Õhtusöök (' ~ today ~ ')' %}
+        {% for c in value_json if c.chore_name == chore_name %}
+          {{ c.next_execution_assigned_user.first_name }}
+        {% endfor %}

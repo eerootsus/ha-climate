@@ -1,0 +1,71 @@
+# Dashboard Card for Home Assistant
+# Copy this to your Lovelace dashboard configuration
+
+# Option 1: Markdown Card (simple, works everywhere)
+type: markdown
+title: Toimkonnad
+content: |
+  ## Sel nädalal
+  | Toimkond | Vastutaja |
+  |----------|-----------|
+  | Pesutoimkond | {{ states('sensor.chore_laundry') }} |
+  | Prügitoimkond | {{ states('sensor.chore_trash') }} |
+  | Tualetitoimkond | {{ states('sensor.chore_bathroom') }} |
+  | Floratoimkond | {{ states('sensor.chore_plants') }} |
+  | Kassitoimkond | {{ states('sensor.chore_cat') }} |
+  | Õuetoimkond | {{ states('sensor.chore_outdoor') }} |
+
+  ## Õhtusöök täna
+  **{{ states('sensor.dinner_today') }}**
+
+---
+
+# Option 2: Entities Card (shows each sensor separately)
+type: entities
+title: Toimkonnad
+entities:
+  - entity: sensor.chore_laundry
+    name: Pesutoimkond
+  - entity: sensor.chore_trash
+    name: Prügitoimkond
+  - entity: sensor.chore_bathroom
+    name: Tualetitoimkond
+  - entity: sensor.chore_plants
+    name: Floratoimkond
+  - entity: sensor.chore_cat
+    name: Kassitoimkond
+  - entity: sensor.chore_outdoor
+    name: Õuetoimkond
+  - type: divider
+  - entity: sensor.dinner_today
+    name: Õhtusöök täna
+
+---
+
+# Option 3: Grid of badges (compact)
+type: horizontal-stack
+cards:
+  - type: entity
+    entity: sensor.chore_laundry
+    name: Pesu
+    icon: mdi:washing-machine
+  - type: entity
+    entity: sensor.chore_trash
+    name: Prügi
+    icon: mdi:trash-can
+  - type: entity
+    entity: sensor.chore_bathroom
+    name: WC
+    icon: mdi:toilet
+  - type: entity
+    entity: sensor.chore_plants
+    name: Taimed
+    icon: mdi:flower
+  - type: entity
+    entity: sensor.chore_cat
+    name: Kass
+    icon: mdi:cat
+  - type: entity
+    entity: sensor.chore_outdoor
+    name: Õu
+    icon: mdi:tree

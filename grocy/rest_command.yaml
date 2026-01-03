@@ -1,0 +1,9 @@
+# Grocy REST Commands
+
+execute_grocy_chore:
+  url: "http://192.168.1.85:9283/api/chores/{{ chore_id }}/execute"
+  method: POST
+  headers:
+    GROCY-API-KEY: !secret grocy_api_key
+  content_type: "application/json"
+  payload: '{"tracked_time": "{{ now().isoformat() }}", "done_by": {{ done_by | default(0) }}}'

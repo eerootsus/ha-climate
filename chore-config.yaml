@@ -1,0 +1,97 @@
+# Grocy Chore Configuration
+# Edit this file to change schedule, then ask Claude to regenerate configuration
+
+# Grocy Connection
+grocy:
+  url: "http://192.168.1.85:9283"
+  api_key: "7a0p7BUTT0Wwts1XKwEpxLW0SQBvmNTgnF5w41nhPouXQooIYm"
+
+# People
+people:
+  - name: Eero
+    grocy_user_id: 1
+    ha_person_id: person.eero_otsus
+  - name: Kätlyn
+    grocy_user_id: 2
+    ha_person_id: person.katlyn_otsus
+  - name: Lola
+    grocy_user_id: 3
+    ha_person_id: person.lola_laur
+
+# Rotating Chores (weekly rotation)
+rotating_chores:
+  # Main chores - all 3 people rotate
+  - grocy_name: Pesutoimkond
+    grocy_id: 3
+    ha_sensor_id: chore_laundry
+    rotation: [Eero, Kätlyn, Lola]
+    initial_assignee: Eero
+
+  - grocy_name: Prügitoimkond
+    grocy_id: 4
+    ha_sensor_id: chore_trash
+    rotation: [Eero, Kätlyn, Lola]
+    initial_assignee: Kätlyn
+
+  - grocy_name: Tualetitoimkond
+    grocy_id: 5
+    ha_sensor_id: chore_bathroom
+    rotation: [Eero, Kätlyn, Lola]
+    initial_assignee: Lola
+
+  # Lightweight chores - all 3 people rotate
+  - grocy_name: Floratoimkond
+    grocy_id: 6
+    ha_sensor_id: chore_plants
+    rotation: [Eero, Kätlyn, Lola]
+    initial_assignee: Eero
+
+  - grocy_name: Kassitoimkond
+    grocy_id: 7
+    ha_sensor_id: chore_cat
+    rotation: [Eero, Kätlyn, Lola]
+    initial_assignee: Kätlyn
+
+  # Outdoor - only Eero and Kätlyn
+  - grocy_name: Õuetoimkond
+    grocy_id: 8
+    ha_sensor_id: chore_outdoor
+    rotation: [Eero, Kätlyn]
+    initial_assignee: Eero
+
+# Dinner Schedule (fixed by weekday)
+dinner_schedule:
+  monday:
+    grocy_name: "Õhtusöök (esmaspäev)"
+    grocy_id: 9
+    assignee: Kätlyn
+  tuesday:
+    grocy_name: "Õhtusöök (teisipäev)"
+    grocy_id: 10
+    assignee: Lola
+  wednesday:
+    grocy_name: "Õhtusöök (kolmapäev)"
+    grocy_id: 11
+    assignee: Eero
+  thursday:
+    grocy_name: "Õhtusöök (neljapäev)"
+    grocy_id: 12
+    assignee: Lola
+  friday:
+    grocy_name: "Õhtusöök (reede)"
+    grocy_id: 13
+    assignee: Kätlyn
+  saturday:
+    grocy_name: "Õhtusöök (laupäev)"
+    grocy_id: 14
+    assignee: Eero
+  sunday:
+    grocy_name: "Õhtusöök (pühapäev)"
+    grocy_id: 15
+    assignee: Kätlyn
+
+# Notifications
+notifications:
+  dinner_reminder_time: "10:00:00"
+  weekly_chore_summary_time: "08:00:00"
+  weekly_chore_summary_day: monday
