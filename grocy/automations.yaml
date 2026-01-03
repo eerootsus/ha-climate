@@ -50,7 +50,7 @@
         cook: "{{ states('sensor.dinner_today') }}"
         notify_services:
           Eero: "notify.mobile_app_fp5"
-          Kätlyn: "notify.mobile_app_katlyn_s_iphone"
+          Kätlyn: "notify.mobile_app_katu_iphone"
         notify_service: "{{ notify_services.get(cook, '') }}"
     - condition: template
       value_template: "{{ notify_service != '' }}"
@@ -74,7 +74,7 @@
         for_each:
           - notify_service: notify.mobile_app_fp5
             name: Eero
-          - notify_service: notify.mobile_app_katlyn_s_iphone
+          - notify_service: notify.mobile_app_katu_iphone
             name: Kätlyn
           # Lola: no app configured
         sequence:
