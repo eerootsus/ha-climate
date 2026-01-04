@@ -13,76 +13,76 @@
       unique_id: chore_laundry
       icon: mdi:washing-machine
       value_template: >
-        {% for c in value_json if c.chore_name == 'Pesutoimkond' %}
+        {%- for c in value_json if c.chore_name == 'Pesutoimkond' -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
 
     - name: "Prügitoimkond"
       unique_id: chore_trash
       icon: mdi:trash-can
       value_template: >
-        {% for c in value_json if c.chore_name == 'Prügitoimkond' %}
+        {%- for c in value_json if c.chore_name == 'Prügitoimkond' -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
 
     - name: "Tualetitoimkond"
       unique_id: chore_bathroom
       icon: mdi:toilet
       value_template: >
-        {% for c in value_json if c.chore_name == 'Tualetitoimkond' %}
+        {%- for c in value_json if c.chore_name == 'Tualetitoimkond' -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
 
     - name: "Floratoimkond"
       unique_id: chore_plants
       icon: mdi:flower
       value_template: >
-        {% for c in value_json if c.chore_name == 'Floratoimkond' %}
+        {%- for c in value_json if c.chore_name == 'Floratoimkond' -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
 
     - name: "Kassitoimkond"
       unique_id: chore_cat
       icon: mdi:cat
       value_template: >
-        {% for c in value_json if c.chore_name == 'Kassitoimkond' %}
+        {%- for c in value_json if c.chore_name == 'Kassitoimkond' -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
 
     - name: "Õuetoimkond"
       unique_id: chore_outdoor
       icon: mdi:tree
       value_template: >
-        {% for c in value_json if c.chore_name == 'Õuetoimkond' %}
+        {%- for c in value_json if c.chore_name == 'Õuetoimkond' -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
 
     - name: "Tolmutoimkond"
       unique_id: chore_dust
       icon: mdi:vacuum
       value_template: >
-        {% for c in value_json if c.chore_name == 'Tolmutoimkond' %}
+        {%- for c in value_json if c.chore_name == 'Tolmutoimkond' -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
 
     - name: "Õhtusöök täna"
       unique_id: dinner_today
       icon: mdi:silverware-clean
       value_template: >
-        {% set weekdays = ['esmaspäev', 'teisipäev', 'kolmapäev', 'neljapäev', 'reede', 'laupäev', 'pühapäev'] %}
-        {% set today = weekdays[now().weekday()] %}
-        {% set chore_name = 'Õhtusöök (' ~ today ~ ')' %}
-        {% for c in value_json if c.chore_name == chore_name %}
+        {%- set weekdays = ['esmaspäev', 'teisipäev', 'kolmapäev', 'neljapäev', 'reede', 'laupäev', 'pühapäev'] -%}
+        {%- set today = weekdays[now().weekday()] -%}
+        {%- set chore_name = 'Õhtusöök (' ~ today ~ ')' -%}
+        {%- for c in value_json if c.chore_name == chore_name -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
 
     - name: "Õhtusöök homme"
       unique_id: dinner_tomorrow
       icon: mdi:silverware
       value_template: >
-        {% set weekdays = ['esmaspäev', 'teisipäev', 'kolmapäev', 'neljapäev', 'reede', 'laupäev', 'pühapäev'] %}
-        {% set tomorrow = weekdays[(now().weekday() + 1) % 7] %}
-        {% set chore_name = 'Õhtusöök (' ~ tomorrow ~ ')' %}
-        {% for c in value_json if c.chore_name == chore_name %}
+        {%- set weekdays = ['esmaspäev', 'teisipäev', 'kolmapäev', 'neljapäev', 'reede', 'laupäev', 'pühapäev'] -%}
+        {%- set tomorrow = weekdays[(now().weekday() + 1) % 7] -%}
+        {%- set chore_name = 'Õhtusöök (' ~ tomorrow ~ ')' -%}
+        {%- for c in value_json if c.chore_name == chore_name -%}
           {{ c.next_execution_assigned_user.first_name }}
-        {% endfor %}
+        {%- endfor -%}
