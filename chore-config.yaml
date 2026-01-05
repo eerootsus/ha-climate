@@ -11,12 +11,15 @@ people:
   - name: Eero
     grocy_user_id: 1
     ha_person_id: person.eero_otsus
+    notify_service: notify.mobile_app_fp5
   - name: Kätlyn
     grocy_user_id: 2
-    ha_person_id: person.katlyn_otsus
+    ha_person_id: person.katlyn_koritski
+    notify_service: notify.mobile_app_katu_iphone
   - name: Lola
     grocy_user_id: 3
     ha_person_id: person.lola_laur
+    notify_service: ""
 
 # Rotating Chores (weekly rotation)
 rotating_chores:

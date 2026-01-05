@@ -52,25 +52,14 @@
   action:
     - variables:
         cook: "{{ states('sensor.dinner_today') }}"
-        people:
-          Eero: person.eero_otsus
-          Kätlyn: person.katlyn_otsus
-          Lola: person.lola_laur
-        person_id: "{{ people.get(cook, '') }}"
-        notify_service: >
-          {% if person_id %}
-            {% set trackers = state_attr(person_id, 'device_trackers') | default([]) %}
-            {% for tracker in trackers %}
-              {% set device = tracker.replace('device_tracker.', '') %}
-              {% set service = 'notify.mobile_app_' ~ device %}
-              {% if states(service) is defined and states(service) != 'unknown' %}
-                {{ service }}
-              {% endif %}
-            {% endfor %}
-          {% endif %}
+        notify_services:
+          Eero: notify.mobile_app_fp5
+          Kätlyn: notify.mobile_app_katu_iphone
+          Lola: ""
+        notify_service: "{{ notify_services.get(cook, '') }}"
     - condition: template
-      value_template: "{{ notify_service | trim != '' }}"
-    - service: "{{ notify_service | trim }}"
+      value_template: "{{ notify_service != '' }}"
+    - service: "{{ notify_service }}"
       data:
         title: "Köögitoimkond"
         message: "Sina oled täna õhtusöögi tegija!"
@@ -89,11 +78,11 @@
     - repeat:
         for_each:
           - name: Eero
-            person_id: person.eero_otsus
+            notify_service: notify.mobile_app_fp5
           - name: Kätlyn
-            person_id: person.katlyn_otsus
+            notify_service: notify.mobile_app_katu_iphone
           - name: Lola
-            person_id: person.lola_laur
+            notify_service: ""
         sequence:
           - variables:
               chores: >
@@ -113,18 +102,9 @@
                   {% endif %}
                 {% endfor %}
                 {{ ns.list | join(', ') }}
-              notify_service: >
-                {% set trackers = state_attr(repeat.item.person_id, 'device_trackers') | default([]) %}
-                {% for tracker in trackers %}
-                  {% set device = tracker.replace('device_tracker.', '') %}
-                  {% set service = 'notify.mobile_app_' ~ device %}
-                  {% if states(service) is defined and states(service) != 'unknown' %}
-                    {{ service }}
-                  {% endif %}
-                {% endfor %}
           - condition: template
-            value_template: "{{ chores | length > 0 and notify_service | trim != '' }}"
-          - service: "{{ notify_service | trim }}"
+            value_template: "{{ chores | length > 0 and repeat.item.notify_service != '' }}"
+          - service: "{{ repeat.item.notify_service }}"
             data:
               title: "Sel nädalal sinu toimkonnad"
               message: "{{ chores }}"
