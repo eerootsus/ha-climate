@@ -208,8 +208,8 @@ CHORE_SENSORS = {
     "input_select.chore_bathroom": {"sensor": "sensor.chore_bathroom", "name": "Chore Bathroom", "icon": "mdi:toilet"},
     "input_select.chore_plants": {"sensor": "sensor.chore_plants", "name": "Chore Plants", "icon": "mdi:flower"},
     "input_select.chore_cat": {"sensor": "sensor.chore_cat", "name": "Chore Cat", "icon": "mdi:cat"},
-    "input_select.chore_outdoor": {"sensor": "sensor.chore_outdoor", "name": "Chore Outdoor", "icon": "mdi:shovel"},
-    "input_select.chore_dust": {"sensor": "sensor.chore_dust", "name": "Chore Dust", "icon": "mdi:robot-vacuum"},
+    "input_select.chore_outdoor": {"sensor": "sensor.chore_outdoor", "name": "Chore Outdoor", "icon": "mdi:tree"},
+    "input_select.chore_dust": {"sensor": "sensor.chore_dust", "name": "Chore Dust", "icon": "mdi:vacuum"},
 }
 
 
