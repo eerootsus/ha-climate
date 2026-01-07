@@ -1,9 +1,0 @@
-# Grocy Chore Integration Package
-# Include via homeassistant.packages in configuration.yaml:
-#   homeassistant:
-#     packages:
-#       grocy: !include grocy/package.yaml
-
-rest: !include sensors.yaml
-rest_command: !include rest_command.yaml
-automation: !include automations.yaml

@@ -1,0 +1,63 @@
+input_select:
+  chore_laundry:
+    name: Pesutoimkond
+    icon: mdi:washing-machine
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+      - person.lola_laur
+    initial: person.eero_otsus
+
+  chore_trash:
+    name: Prügitoimkond
+    icon: mdi:trash-can
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+      - person.lola_laur
+    initial: person.katlyn_otsus
+
+  chore_bathroom:
+    name: Tualetitoimkond
+    icon: mdi:toilet
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+      - person.lola_laur
+    initial: person.lola_laur
+
+  chore_plants:
+    name: Floratoimkond
+    icon: mdi:flower
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+      - person.lola_laur
+    initial: person.eero_otsus
+
+  chore_cat:
+    name: Kassitoimkond
+    icon: mdi:cat
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+      - person.lola_laur
+    initial: person.katlyn_otsus
+
+  chore_outdoor:
+    name: Õuetoimkond
+    icon: mdi:shovel
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+    initial: person.eero_otsus
+
+  chore_dust:
+    name: Tolmutoimkond
+    icon: mdi:robot-vacuum
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+      - person.lola_laur
+    initial: person.lola_laur
+
