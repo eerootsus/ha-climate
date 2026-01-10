@@ -67,9 +67,9 @@ DINNER_SCHEDULE = {
 
 def get_person_name(person_id):
     """Get friendly name from a person entity ID."""
-    name = state.getattr(person_id, "friendly_name")
-    if name:
-        return name
+    attrs = state.getattr(person_id)
+    if attrs and "friendly_name" in attrs:
+        return attrs["friendly_name"]
     # Fallback: extract name from entity ID
     return person_id.split(".")[-1].replace("_", " ").title()
 
@@ -201,6 +201,12 @@ def chores_send_summaries():
     send_weekly_summary()
 
 
+@service
+def chores_send_dinner_reminder():
+    """Service to manually trigger dinner reminder."""
+    send_dinner_reminder()
+
+
 # Sensor configuration - maps chore entity to sensor details
 CHORE_SENSORS = {
     "input_select.chore_laundry": {"sensor": "sensor.chore_laundry", "name": "Chore Laundry", "icon": "mdi:washing-machine"},
@@ -265,6 +271,26 @@ def initialize_sensors():
 def on_chore_change():
     """Update chore sensors when any input_select changes."""
     update_chore_sensors()
+
+
+@state_trigger("sensor.washer_washer_job_state == 'finish'")
+def on_washer_finished():
+    """Notify laundry person when washer finishes."""
+    person_id = state.get("input_select.chore_laundry")
+    notify_service = get_notify_service(person_id)
+
+    if not notify_service:
+        log.info(f"No notification service for {get_person_name(person_id)}, skipping washer notification")
+        return
+
+    log.info(f"Sending washer finished notification to {get_person_name(person_id)}")
+
+    service.call(
+        notify_service.split(".")[0],
+        notify_service.split(".")[1],
+        title="Pesutoimkond",
+        message="Pesumasin lõpetas!",
+    )
 
 
 @time_trigger("cron(0 0 * * *)")  # Daily at midnight

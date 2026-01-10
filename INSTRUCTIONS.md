@@ -6,7 +6,7 @@
 | Name | Person Entity | Notification Service |
 |------|---------------|---------------------|
 | Eero | person.eero_otsus | notify.mobile_app_fp5 |
-| Kätlyn | person.katlyn_koritski | notify.mobile_app_katu_iphone |
+| Kätlyn | person.katlyn_otsus | notify.mobile_app_katu_iphone |
 | Lola | person.lola_laur | (none) |
 
 ### Rotating Chores (Weekly)
