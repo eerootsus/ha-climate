@@ -1,0 +1,69 @@
+# Daily dinner reminder - 10:00
+# Notifies today's cook based on fixed weekly schedule
+
+automation:
+  - id: chore_dinner_reminder
+    alias: "Chores: Daily Dinner Reminder"
+    trigger:
+      - platform: time
+        at: "10:00:00"
+    action:
+      - choose:
+          # Monday - Kätlyn
+          - conditions:
+              - condition: time
+                weekday:
+                  - mon
+            sequence:
+              - service: notify.mobile_app_katu_iphone
+                data:
+                  title: "Köögitoimkond"
+                  message: "Sina oled täna õhtusöögi tegija!"
+
+          # Tuesday - Lola (no notification)
+
+          # Wednesday - Eero
+          - conditions:
+              - condition: time
+                weekday:
+                  - wed
+            sequence:
+              - service: notify.mobile_app_fp5
+                data:
+                  title: "Köögitoimkond"
+                  message: "Sina oled täna õhtusöögi tegija!"
+
+          # Thursday - Lola (no notification)
+
+          # Friday - Kätlyn
+          - conditions:
+              - condition: time
+                weekday:
+                  - fri
+            sequence:
+              - service: notify.mobile_app_katu_iphone
+                data:
+                  title: "Köögitoimkond"
+                  message: "Sina oled täna õhtusöögi tegija!"
+
+          # Saturday - Eero
+          - conditions:
+              - condition: time
+                weekday:
+                  - sat
+            sequence:
+              - service: notify.mobile_app_fp5
+                data:
+                  title: "Köögitoimkond"
+                  message: "Sina oled täna õhtusöögi tegija!"
+
+          # Sunday - Kätlyn
+          - conditions:
+              - condition: time
+                weekday:
+                  - sun
+            sequence:
+              - service: notify.mobile_app_katu_iphone
+                data:
+                  title: "Köögitoimkond"
+                  message: "Sina oled täna õhtusöögi tegija!"

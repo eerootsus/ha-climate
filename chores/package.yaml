@@ -6,7 +6,6 @@ input_select:
       - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
-    initial: person.eero_otsus
 
   chore_trash:
     name: Prügitoimkond
@@ -15,7 +14,6 @@ input_select:
       - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
-    initial: person.katlyn_otsus
 
   chore_bathroom:
     name: Tualetitoimkond
@@ -24,7 +22,6 @@ input_select:
       - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
-    initial: person.lola_laur
 
   chore_plants:
     name: Floratoimkond
@@ -33,7 +30,6 @@ input_select:
       - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
-    initial: person.eero_otsus
 
   chore_cat:
     name: Kassitoimkond
@@ -42,7 +38,6 @@ input_select:
       - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
-    initial: person.katlyn_otsus
 
   chore_outdoor:
     name: Õuetoimkond
@@ -50,7 +45,6 @@ input_select:
     options:
       - person.eero_otsus
       - person.katlyn_otsus
-    initial: person.eero_otsus
 
   chore_dust:
     name: Tolmutoimkond
@@ -59,5 +53,34 @@ input_select:
       - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
-    initial: person.lola_laur
+
+  ada_helper_eero:
+    name: Ada abistab Eerot
+    icon: mdi:account-plus
+    options:
+      - chore_laundry
+      - chore_trash
+      - chore_bathroom
+      - chore_plants
+      - chore_cat
+      - chore_outdoor
+      - chore_dust
+
+  ada_helper_katlyn:
+    name: Ada abistab Kätlyni
+    icon: mdi:account-plus
+    options:
+      - chore_laundry
+      - chore_trash
+      - chore_bathroom
+      - chore_plants
+      - chore_cat
+      - chore_outdoor
+      - chore_dust
+
+input_datetime:
+  chore_last_rotation:
+    name: Last Chore Rotation
+    has_date: true
+    has_time: false
 

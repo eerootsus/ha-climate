@@ -1,4 +1,6 @@
-# Pyscript Chore Management Setup
+# Home Assistant Chore Management
+
+Native Home Assistant automations for household chore rotation and notifications.
 
 ## What's Configured
 
@@ -35,26 +37,35 @@
 
 ## Home Assistant Setup
 
-### Prerequisites
-- Pyscript integration installed (via HACS or manual)
-
 ### Step 1: Copy Files to HA Config
 
 ```
 config/
-├── pyscript/
-│   └── chores.py         <- copy this
 ├── chores/
-│   └── package.yaml      <- copy this folder
+│   ├── package.yaml                      <- input_selects and input_datetime
+│   ├── sensors/
+│   │   ├── chores.yaml                   <- chore sensors
+│   │   └── dinner.yaml                   <- dinner sensors
+│   └── automations/
+│       ├── rotation.yaml                 <- weekly rotation
+│       ├── weekly_summary.yaml           <- Monday summary notifications
+│       ├── dinner_reminder.yaml          <- daily dinner reminders
+│       └── washer_finished.yaml          <- washer notification
 └── configuration.yaml
 ```
 
-### Step 2: Include Package in configuration.yaml
+### Step 2: Include Packages in configuration.yaml
 
 ```yaml
 homeassistant:
   packages:
     chores: !include chores/package.yaml
+    chores_sensors: !include chores/sensors/chores.yaml
+    chores_dinner: !include chores/sensors/dinner.yaml
+    chores_rotation: !include chores/automations/rotation.yaml
+    chores_weekly_summary: !include chores/automations/weekly_summary.yaml
+    chores_dinner_reminder: !include chores/automations/dinner_reminder.yaml
+    chores_washer: !include chores/automations/washer_finished.yaml
 ```
 
 ### Step 3: Restart Home Assistant
@@ -66,35 +77,71 @@ Settings -> System -> Restart
 ## How It Works
 
 ### Chore Rotation
-- Every Monday at 00:01, pyscript rotates all chores to the next person
-- Each chore's rotation is independent (different people may be assigned)
-- State is stored in `input_select` entities (survives restarts)
+- Every Monday at 00:01, automations rotate all chores to the next person
+- Uses `input_datetime.chore_last_rotation` to prevent duplicate rotations (idempotent)
+- Each chore's rotation is independent
+- State is stored in `input_select` entities (persists across restarts)
 
 ### Notifications
 - **Daily dinner reminder** at 10:00 - notifies today's cook
 - **Weekly chore summary** at 08:00 Monday - each person gets their weekly chores
+- **Washer finished** - notifies the current laundry person when washer completes
 
-### Sensors
-- `sensor.chore_*` - Shows friendly name of current assignee
-- `sensor.dinner_today` / `sensor.dinner_tomorrow` - Shows today's/tomorrow's cook
+### Sensors (Always Available)
+Template sensors derive from input_selects and are always available, even if automations fail:
+
+- `sensor.chore_laundry` - Current laundry assignee's first name
+- `sensor.chore_trash` - Current trash assignee's first name
+- `sensor.chore_bathroom` - Current bathroom assignee's first name
+- `sensor.chore_plants` - Current plants assignee's first name
+- `sensor.chore_cat` - Current cat assignee's first name
+- `sensor.chore_outdoor` - Current outdoor assignee's first name
+- `sensor.chore_dust` - Current dust assignee's first name
+- `sensor.dinner_today` - Today's cook
+- `sensor.dinner_tomorrow` - Tomorrow's cook
 
 ---
 
-## Manual Services
+## Manual Control
 
-Call from Developer Tools -> Services:
+### Triggering Rotation Manually
+Run the automation from Developer Tools -> Services:
+```yaml
+service: automation.trigger
+target:
+  entity_id: automation.chores_weekly_rotation
+```
 
-- `pyscript.chores_rotate_now` - Manually trigger rotation
-- `pyscript.chores_send_summaries` - Manually send weekly summaries
+### Changing Assignments
+Use input_select entities directly via UI or service calls:
+```yaml
+service: input_select.select_option
+target:
+  entity_id: input_select.chore_laundry
+data:
+  option: person.katlyn_otsus
+```
+
+---
+
+## Debugging
+
+All automations have traces available in:
+Settings -> Automations -> [Automation Name] -> Traces
 
 ---
 
 ## Modifying Configuration
 
-Edit `pyscript/chores.py` to change:
-- People and notification services (`PEOPLE` dict)
-- Chores and rotations (`ROTATING_CHORES` list)
-- Dinner schedule (`DINNER_SCHEDULE` dict)
+### Adding/Removing People
+1. Update `sensors/chores.yaml` - add/remove from the `names` dict in each sensor
+2. Update `sensors/dinner.yaml` - add/remove from the `schedule` dict
+3. Update `package.yaml` - add/remove options in input_selects
+4. Update automations - adjust rotation lists and notification targets
 
-After editing, reload pyscript:
-- Developer Tools -> YAML -> Reload Pyscript
+### Changing Rotation Order
+Edit the `rotation` list in `automations/rotation.yaml`.
+
+### Changing Dinner Schedule
+Edit `sensors/dinner.yaml` - modify the `schedule` dict.
+Edit `automations/dinner_reminder.yaml` - adjust the weekday conditions.

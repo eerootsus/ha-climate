@@ -1,0 +1,110 @@
+# Weekly summary notifications - Monday at 08:00
+# Sends each person their assigned chores for the week
+
+automation:
+  - id: chore_weekly_summary
+    alias: "Chores: Weekly Summary"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+    action:
+      # Notify Eero
+      - service: notify.mobile_app_fp5
+        data:
+          title: "Nädala toimkonnad"
+          message: >
+            {% set chores = namespace(list=[]) %}
+            {% if states('input_select.chore_laundry') == 'person.eero_otsus' %}
+              {% set chores.list = chores.list + ['Pesutoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_trash') == 'person.eero_otsus' %}
+              {% set chores.list = chores.list + ['Prügitoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_bathroom') == 'person.eero_otsus' %}
+              {% set chores.list = chores.list + ['Tualetitoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_plants') == 'person.eero_otsus' %}
+              {% set chores.list = chores.list + ['Floratoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_cat') == 'person.eero_otsus' %}
+              {% set chores.list = chores.list + ['Kassitoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_outdoor') == 'person.eero_otsus' %}
+              {% set chores.list = chores.list + ['Õuetoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_dust') == 'person.eero_otsus' %}
+              {% set chores.list = chores.list + ['Tolmutoimkond'] %}
+            {% endif %}
+            {% if chores.list | length > 0 %}
+              Sinu toimkonnad sel nädalal: {{ chores.list | join(', ') }}
+            {% else %}
+              Sul pole sel nädalal toimkondi!
+            {% endif %}
+
+      # Notify Kätlyn
+      - service: notify.mobile_app_katu_iphone
+        data:
+          title: "Nädala toimkonnad"
+          message: >
+            {% set chores = namespace(list=[]) %}
+            {% if states('input_select.chore_laundry') == 'person.katlyn_otsus' %}
+              {% set chores.list = chores.list + ['Pesutoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_trash') == 'person.katlyn_otsus' %}
+              {% set chores.list = chores.list + ['Prügitoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_bathroom') == 'person.katlyn_otsus' %}
+              {% set chores.list = chores.list + ['Tualetitoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_plants') == 'person.katlyn_otsus' %}
+              {% set chores.list = chores.list + ['Floratoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_cat') == 'person.katlyn_otsus' %}
+              {% set chores.list = chores.list + ['Kassitoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_outdoor') == 'person.katlyn_otsus' %}
+              {% set chores.list = chores.list + ['Õuetoimkond'] %}
+            {% endif %}
+            {% if states('input_select.chore_dust') == 'person.katlyn_otsus' %}
+              {% set chores.list = chores.list + ['Tolmutoimkond'] %}
+            {% endif %}
+            {% if chores.list | length > 0 %}
+              Sinu toimkonnad sel nädalal: {{ chores.list | join(', ') }}
+            {% else %}
+              Sul pole sel nädalal toimkondi!
+            {% endif %}
+
+      # Notify Ada (helper chores)
+      - service: notify.mobile_app_adas_iphone
+        data:
+          title: "Nädala toimkonnad"
+          message: >
+            {% set chore_names = {
+              'chore_laundry': 'Pesutoimkond',
+              'chore_trash': 'Prügitoimkond',
+              'chore_bathroom': 'Tualetitoimkond',
+              'chore_plants': 'Floratoimkond',
+              'chore_cat': 'Kassitoimkond',
+              'chore_outdoor': 'Õuetoimkond',
+              'chore_dust': 'Tolmutoimkond'
+            } %}
+            {% set eero_chore = states('input_select.ada_helper_eero') %}
+            {% set katlyn_chore = states('input_select.ada_helper_katlyn') %}
+            {% set chores = namespace(list=[]) %}
+            {% if eero_chore in chore_names %}
+              {% set chores.list = chores.list + [chore_names[eero_chore] ~ ' (Eeroga)'] %}
+            {% endif %}
+            {% if katlyn_chore in chore_names %}
+              {% set chores.list = chores.list + [chore_names[katlyn_chore] ~ ' (Kätlyniga)'] %}
+            {% endif %}
+            {% if chores.list | length > 0 %}
+              Sinu abistamised sel nädalal: {{ chores.list | join(', ') }}
+            {% else %}
+              Sul pole sel nädalal abistamisi!
+            {% endif %}
+
+      # Lola has no notification service configured

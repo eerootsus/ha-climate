@@ -1,0 +1,142 @@
+# Weekly chore rotation - Monday at 00:01
+# Uses input_datetime.chore_last_rotation to prevent duplicate rotations
+
+automation:
+  - id: chore_weekly_rotation
+    alias: "Chores: Weekly Rotation"
+    trigger:
+      - platform: time
+        at: "00:01:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+      # Only rotate if last rotation was more than 6 days ago
+      - condition: template
+        value_template: >
+          {% set last = states('input_datetime.chore_last_rotation') %}
+          {% if last in ['unknown', 'unavailable', ''] %}
+            true
+          {% else %}
+            {{ (now().date() - strptime(last, '%Y-%m-%d').date()).days >= 6 }}
+          {% endif %}
+    action:
+      # Rotate laundry: Eero -> Kätlyn -> Lola -> Eero
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.chore_laundry
+        data:
+          option: >
+            {% set current = states('input_select.chore_laundry') %}
+            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
+            {% set idx = rotation.index(current) if current in rotation else -1 %}
+            {{ rotation[(idx + 1) % 3] }}
+
+      # Rotate trash: Eero -> Kätlyn -> Lola -> Eero
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.chore_trash
+        data:
+          option: >
+            {% set current = states('input_select.chore_trash') %}
+            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
+            {% set idx = rotation.index(current) if current in rotation else -1 %}
+            {{ rotation[(idx + 1) % 3] }}
+
+      # Rotate bathroom: Eero -> Kätlyn -> Lola -> Eero
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.chore_bathroom
+        data:
+          option: >
+            {% set current = states('input_select.chore_bathroom') %}
+            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
+            {% set idx = rotation.index(current) if current in rotation else -1 %}
+            {{ rotation[(idx + 1) % 3] }}
+
+      # Rotate plants: Eero -> Kätlyn -> Lola -> Eero
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.chore_plants
+        data:
+          option: >
+            {% set current = states('input_select.chore_plants') %}
+            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
+            {% set idx = rotation.index(current) if current in rotation else -1 %}
+            {{ rotation[(idx + 1) % 3] }}
+
+      # Rotate cat: Eero -> Kätlyn -> Lola -> Eero
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.chore_cat
+        data:
+          option: >
+            {% set current = states('input_select.chore_cat') %}
+            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
+            {% set idx = rotation.index(current) if current in rotation else -1 %}
+            {{ rotation[(idx + 1) % 3] }}
+
+      # Rotate outdoor: Eero -> Kätlyn -> Eero (only 2 people)
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.chore_outdoor
+        data:
+          option: >
+            {% set current = states('input_select.chore_outdoor') %}
+            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus'] %}
+            {% set idx = rotation.index(current) if current in rotation else -1 %}
+            {{ rotation[(idx + 1) % 2] }}
+
+      # Rotate dust: Eero -> Kätlyn -> Lola -> Eero
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.chore_dust
+        data:
+          option: >
+            {% set current = states('input_select.chore_dust') %}
+            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
+            {% set idx = rotation.index(current) if current in rotation else -1 %}
+            {{ rotation[(idx + 1) % 3] }}
+
+      # Wait for state changes to propagate before Ada selection
+      - delay:
+          seconds: 1
+
+      # Pick random chore for Ada from Eero's assignments
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.ada_helper_eero
+        data:
+          option: >
+            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom',
+                             'chore_plants', 'chore_cat', 'chore_outdoor', 'chore_dust'] %}
+            {% set ns = namespace(eero_list=[]) %}
+            {% for chore in chores %}
+              {% if states('input_select.' ~ chore) == 'person.eero_otsus' %}
+                {% set ns.eero_list = ns.eero_list + [chore] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.eero_list | random }}
+
+      # Pick random chore for Ada from Kätlyn's assignments
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.ada_helper_katlyn
+        data:
+          option: >
+            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom',
+                             'chore_plants', 'chore_cat', 'chore_outdoor', 'chore_dust'] %}
+            {% set ns = namespace(katlyn_list=[]) %}
+            {% for chore in chores %}
+              {% if states('input_select.' ~ chore) == 'person.katlyn_otsus' %}
+                {% set ns.katlyn_list = ns.katlyn_list + [chore] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.katlyn_list | random }}
+
+      # Record rotation date
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.chore_last_rotation
+        data:
+          date: "{{ now().strftime('%Y-%m-%d') }}"

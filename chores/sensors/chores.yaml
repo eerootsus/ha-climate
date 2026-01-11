@@ -1,0 +1,155 @@
+template:
+  - sensor:
+      - name: Chore Laundry
+        unique_id: chore_laundry_sensor
+        icon: mdi:washing-machine
+        state: >
+          {% set person = states('input_select.chore_laundry') %}
+          {% set names = {
+            'person.eero_otsus': 'Eero',
+            'person.katlyn_otsus': 'Kätlyn',
+            'person.lola_laur': 'Lola'
+          } %}
+          {% set base_name = names.get(person, 'Unknown') %}
+          {% set ada_eero = states('input_select.ada_helper_eero') %}
+          {% set ada_katlyn = states('input_select.ada_helper_katlyn') %}
+          {% if ada_eero == 'chore_laundry' or ada_katlyn == 'chore_laundry' %}
+            {{ base_name }} & Ada
+          {% else %}
+            {{ base_name }}
+          {% endif %}
+        attributes:
+          person_id: "{{ states('input_select.chore_laundry') }}"
+          ada_helping: "{{ states('input_select.ada_helper_eero') == 'chore_laundry' or states('input_select.ada_helper_katlyn') == 'chore_laundry' }}"
+
+      - name: Chore Trash
+        unique_id: chore_trash_sensor
+        icon: mdi:trash-can
+        state: >
+          {% set person = states('input_select.chore_trash') %}
+          {% set names = {
+            'person.eero_otsus': 'Eero',
+            'person.katlyn_otsus': 'Kätlyn',
+            'person.lola_laur': 'Lola'
+          } %}
+          {% set base_name = names.get(person, 'Unknown') %}
+          {% set ada_eero = states('input_select.ada_helper_eero') %}
+          {% set ada_katlyn = states('input_select.ada_helper_katlyn') %}
+          {% if ada_eero == 'chore_trash' or ada_katlyn == 'chore_trash' %}
+            {{ base_name }} & Ada
+          {% else %}
+            {{ base_name }}
+          {% endif %}
+        attributes:
+          person_id: "{{ states('input_select.chore_trash') }}"
+          ada_helping: "{{ states('input_select.ada_helper_eero') == 'chore_trash' or states('input_select.ada_helper_katlyn') == 'chore_trash' }}"
+
+      - name: Chore Bathroom
+        unique_id: chore_bathroom_sensor
+        icon: mdi:toilet
+        state: >
+          {% set person = states('input_select.chore_bathroom') %}
+          {% set names = {
+            'person.eero_otsus': 'Eero',
+            'person.katlyn_otsus': 'Kätlyn',
+            'person.lola_laur': 'Lola'
+          } %}
+          {% set base_name = names.get(person, 'Unknown') %}
+          {% set ada_eero = states('input_select.ada_helper_eero') %}
+          {% set ada_katlyn = states('input_select.ada_helper_katlyn') %}
+          {% if ada_eero == 'chore_bathroom' or ada_katlyn == 'chore_bathroom' %}
+            {{ base_name }} & Ada
+          {% else %}
+            {{ base_name }}
+          {% endif %}
+        attributes:
+          person_id: "{{ states('input_select.chore_bathroom') }}"
+          ada_helping: "{{ states('input_select.ada_helper_eero') == 'chore_bathroom' or states('input_select.ada_helper_katlyn') == 'chore_bathroom' }}"
+
+      - name: Chore Plants
+        unique_id: chore_plants_sensor
+        icon: mdi:flower
+        state: >
+          {% set person = states('input_select.chore_plants') %}
+          {% set names = {
+            'person.eero_otsus': 'Eero',
+            'person.katlyn_otsus': 'Kätlyn',
+            'person.lola_laur': 'Lola'
+          } %}
+          {% set base_name = names.get(person, 'Unknown') %}
+          {% set ada_eero = states('input_select.ada_helper_eero') %}
+          {% set ada_katlyn = states('input_select.ada_helper_katlyn') %}
+          {% if ada_eero == 'chore_plants' or ada_katlyn == 'chore_plants' %}
+            {{ base_name }} & Ada
+          {% else %}
+            {{ base_name }}
+          {% endif %}
+        attributes:
+          person_id: "{{ states('input_select.chore_plants') }}"
+          ada_helping: "{{ states('input_select.ada_helper_eero') == 'chore_plants' or states('input_select.ada_helper_katlyn') == 'chore_plants' }}"
+
+      - name: Chore Cat
+        unique_id: chore_cat_sensor
+        icon: mdi:cat
+        state: >
+          {% set person = states('input_select.chore_cat') %}
+          {% set names = {
+            'person.eero_otsus': 'Eero',
+            'person.katlyn_otsus': 'Kätlyn',
+            'person.lola_laur': 'Lola'
+          } %}
+          {% set base_name = names.get(person, 'Unknown') %}
+          {% set ada_eero = states('input_select.ada_helper_eero') %}
+          {% set ada_katlyn = states('input_select.ada_helper_katlyn') %}
+          {% if ada_eero == 'chore_cat' or ada_katlyn == 'chore_cat' %}
+            {{ base_name }} & Ada
+          {% else %}
+            {{ base_name }}
+          {% endif %}
+        attributes:
+          person_id: "{{ states('input_select.chore_cat') }}"
+          ada_helping: "{{ states('input_select.ada_helper_eero') == 'chore_cat' or states('input_select.ada_helper_katlyn') == 'chore_cat' }}"
+
+      - name: Chore Outdoor
+        unique_id: chore_outdoor_sensor
+        icon: mdi:shovel
+        state: >
+          {% set person = states('input_select.chore_outdoor') %}
+          {% set names = {
+            'person.eero_otsus': 'Eero',
+            'person.katlyn_otsus': 'Kätlyn',
+            'person.lola_laur': 'Lola'
+          } %}
+          {% set base_name = names.get(person, 'Unknown') %}
+          {% set ada_eero = states('input_select.ada_helper_eero') %}
+          {% set ada_katlyn = states('input_select.ada_helper_katlyn') %}
+          {% if ada_eero == 'chore_outdoor' or ada_katlyn == 'chore_outdoor' %}
+            {{ base_name }} & Ada
+          {% else %}
+            {{ base_name }}
+          {% endif %}
+        attributes:
+          person_id: "{{ states('input_select.chore_outdoor') }}"
+          ada_helping: "{{ states('input_select.ada_helper_eero') == 'chore_outdoor' or states('input_select.ada_helper_katlyn') == 'chore_outdoor' }}"
+
+      - name: Chore Dust
+        unique_id: chore_dust_sensor
+        icon: mdi:vacuum
+        state: >
+          {% set person = states('input_select.chore_dust') %}
+          {% set names = {
+            'person.eero_otsus': 'Eero',
+            'person.katlyn_otsus': 'Kätlyn',
+            'person.lola_laur': 'Lola'
+          } %}
+          {% set base_name = names.get(person, 'Unknown') %}
+          {% set ada_eero = states('input_select.ada_helper_eero') %}
+          {% set ada_katlyn = states('input_select.ada_helper_katlyn') %}
+          {% if ada_eero == 'chore_dust' or ada_katlyn == 'chore_dust' %}
+            {{ base_name }} & Ada
+          {% else %}
+            {{ base_name }}
+          {% endif %}
+        attributes:
+          person_id: "{{ states('input_select.chore_dust') }}"
+          ada_helping: "{{ states('input_select.ada_helper_eero') == 'chore_dust' or states('input_select.ada_helper_katlyn') == 'chore_dust' }}"

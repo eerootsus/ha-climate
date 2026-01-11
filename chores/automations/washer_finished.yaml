@@ -1,0 +1,50 @@
+# Washer finished notification
+# Notifies the current laundry person when washer completes
+
+automation:
+  - id: chore_washer_finished
+    alias: "Chores: Washer Finished"
+    trigger:
+      - platform: state
+        entity_id: sensor.washer_washer_job_state
+        to: "finish"
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_select.chore_laundry
+                state: "person.eero_otsus"
+            sequence:
+              - service: notify.mobile_app_fp5
+                data:
+                  title: "Pesutoimkond"
+                  message: "Pesumasin lõpetas!"
+
+          - conditions:
+              - condition: state
+                entity_id: input_select.chore_laundry
+                state: "person.katlyn_otsus"
+            sequence:
+              - service: notify.mobile_app_katu_iphone
+                data:
+                  title: "Pesutoimkond"
+                  message: "Pesumasin lõpetas!"
+
+          # Lola has no notification service
+
+      # Also notify Ada if she's helping with laundry
+      - choose:
+          - conditions:
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity_id: input_select.ada_helper_eero
+                    state: "chore_laundry"
+                  - condition: state
+                    entity_id: input_select.ada_helper_katlyn
+                    state: "chore_laundry"
+            sequence:
+              - service: notify.mobile_app_adas_iphone
+                data:
+                  title: "Pesutoimkond"
+                  message: "Pesumasin lõpetas!"
