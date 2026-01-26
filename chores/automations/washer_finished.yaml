@@ -30,7 +30,15 @@ automation:
                   title: "Pesutoimkond"
                   message: "Pesumasin lõpetas!"
 
-          # Lola has no notification service
+          - conditions:
+              - condition: state
+                entity_id: input_select.chore_laundry
+                state: "person.lola_laur"
+            sequence:
+              - service: notify.mobile_app_lolas_iphone
+                data:
+                  title: "Pesutoimkond"
+                  message: "Pesumasin lõpetas!"
 
       # Also notify Ada if she's helping with laundry
       - choose:

@@ -9,7 +9,7 @@ Native Home Assistant automations for household chore rotation and notifications
 |------|---------------|---------------------|
 | Eero | person.eero_otsus | notify.mobile_app_eeros_iphone |
 | Kätlyn | person.katlyn_otsus | notify.mobile_app_katu_iphone |
-| Lola | person.lola_laur | (none) |
+| Lola | person.lola_laur | notify.mobile_app_lolas_iphone |
 
 ### Rotating Chores (Weekly)
 | Chore | Entity | Rotation |
