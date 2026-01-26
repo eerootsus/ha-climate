@@ -7,7 +7,7 @@ Native Home Assistant automations for household chore rotation and notifications
 ### People
 | Name | Person Entity | Notification Service |
 |------|---------------|---------------------|
-| Eero | person.eero_otsus | notify.mobile_app_fp5 |
+| Eero | person.eero_otsus | notify.mobile_app_eeros_iphone |
 | Kätlyn | person.katlyn_otsus | notify.mobile_app_katu_iphone |
 | Lola | person.lola_laur | (none) |
 

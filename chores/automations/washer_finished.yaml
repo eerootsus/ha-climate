@@ -15,7 +15,7 @@ automation:
                 entity_id: input_select.chore_laundry
                 state: "person.eero_otsus"
             sequence:
-              - service: notify.mobile_app_fp5
+              - service: notify.mobile_app_eeros_iphone
                 data:
                   title: "Pesutoimkond"
                   message: "Pesumasin lõpetas!"

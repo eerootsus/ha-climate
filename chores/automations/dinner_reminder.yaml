@@ -18,7 +18,7 @@ automation:
               - service: notify.mobile_app_katu_iphone
                 data:
                   title: "Köögitoimkond"
-                  message: "Sina oled täna õhtusöögi tegija!"
+                  message: "Kätlyn, sinu kord on täna õhtusöök valmistada!"
 
           # Tuesday - Lola (no notification)
 
@@ -28,10 +28,10 @@ automation:
                 weekday:
                   - wed
             sequence:
-              - service: notify.mobile_app_fp5
+              - service: notify.mobile_app_eeros_iphone
                 data:
                   title: "Köögitoimkond"
-                  message: "Sina oled täna õhtusöögi tegija!"
+                  message: "Eero, sinu kord on täna õhtusöök valmistada!"
 
           # Thursday - Lola (no notification)
 
@@ -44,7 +44,7 @@ automation:
               - service: notify.mobile_app_katu_iphone
                 data:
                   title: "Köögitoimkond"
-                  message: "Sina oled täna õhtusöögi tegija!"
+                  message: "Kätlyn, sinu kord on täna õhtusöök valmistada!"
 
           # Saturday - Eero
           - conditions:
@@ -52,10 +52,10 @@ automation:
                 weekday:
                   - sat
             sequence:
-              - service: notify.mobile_app_fp5
+              - service: notify.mobile_app_eeros_iphone
                 data:
                   title: "Köögitoimkond"
-                  message: "Sina oled täna õhtusöögi tegija!"
+                  message: "Eero, sinu kord on täna õhtusöök valmistada!"
 
           # Sunday - Kätlyn
           - conditions:
@@ -66,4 +66,4 @@ automation:
               - service: notify.mobile_app_katu_iphone
                 data:
                   title: "Köögitoimkond"
-                  message: "Sina oled täna õhtusöögi tegija!"
+                  message: "Kätlyn, sinu kord on täna õhtusöök valmistada!"

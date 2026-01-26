@@ -13,7 +13,7 @@ automation:
           - mon
     action:
       # Notify Eero
-      - service: notify.mobile_app_fp5
+      - service: notify.mobile_app_eeros_iphone
         data:
           title: "Nädala toimkonnad"
           message: >
@@ -102,9 +102,9 @@ automation:
               {% set chores.list = chores.list + [chore_names[katlyn_chore] ~ ' (Kätlyniga)'] %}
             {% endif %}
             {% if chores.list | length > 0 %}
-              Sinu abistamised sel nädalal: {{ chores.list | join(', ') }}
+              Sina aitad sel nädalal: {{ chores.list | join(', ') }}
             {% else %}
-              Sul pole sel nädalal abistamisi!
+              Sul pole sel nädalal toimkondi!
             {% endif %}
 
       # Lola has no notification service configured
