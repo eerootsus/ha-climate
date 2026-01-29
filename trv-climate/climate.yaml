@@ -1,0 +1,89 @@
+# Climate sensors - reads from pyscript virtual entities
+# These template sensors have proper unique_ids for UI management
+
+template:
+  - sensor:
+      # Ada's room
+      - name: "Ada's room Temperature"
+        unique_id: climate_ada_s_room_temperature
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.climate_ada_s_room_temperature') }}"
+        availability: "{{ states('sensor.climate_ada_s_room_temperature') not in ['unknown', 'unavailable'] }}"
+
+      - name: "Ada's room Humidity"
+        unique_id: climate_ada_s_room_humidity
+        device_class: humidity
+        state_class: measurement
+        unit_of_measurement: "%"
+        state: "{{ states('sensor.climate_ada_s_room_humidity') }}"
+        availability: "{{ states('sensor.climate_ada_s_room_humidity') not in ['unknown', 'unavailable'] }}"
+
+      # Master bedroom
+      - name: "Master bedroom Temperature"
+        unique_id: climate_bedroom_temperature
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.climate_bedroom_temperature') }}"
+        availability: "{{ states('sensor.climate_bedroom_temperature') not in ['unknown', 'unavailable'] }}"
+
+      - name: "Master bedroom Humidity"
+        unique_id: climate_bedroom_humidity
+        device_class: humidity
+        state_class: measurement
+        unit_of_measurement: "%"
+        state: "{{ states('sensor.climate_bedroom_humidity') }}"
+        availability: "{{ states('sensor.climate_bedroom_humidity') not in ['unknown', 'unavailable'] }}"
+
+      # Kitchen
+      - name: "Kitchen Temperature"
+        unique_id: climate_kitchen_temperature
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.climate_kitchen_temperature') }}"
+        availability: "{{ states('sensor.climate_kitchen_temperature') not in ['unknown', 'unavailable'] }}"
+
+      - name: "Kitchen Humidity"
+        unique_id: climate_kitchen_humidity
+        device_class: humidity
+        state_class: measurement
+        unit_of_measurement: "%"
+        state: "{{ states('sensor.climate_kitchen_humidity') }}"
+        availability: "{{ states('sensor.climate_kitchen_humidity') not in ['unknown', 'unavailable'] }}"
+
+      # Lola's room
+      - name: "Lola's room Temperature"
+        unique_id: climate_lola_s_room_temperature
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.climate_lola_s_room_temperature') }}"
+        availability: "{{ states('sensor.climate_lola_s_room_temperature') not in ['unknown', 'unavailable'] }}"
+
+      - name: "Lola's room Humidity"
+        unique_id: climate_lola_s_room_humidity
+        device_class: humidity
+        state_class: measurement
+        unit_of_measurement: "%"
+        state: "{{ states('sensor.climate_lola_s_room_humidity') }}"
+        availability: "{{ states('sensor.climate_lola_s_room_humidity') not in ['unknown', 'unavailable'] }}"
+
+      # Stairwell
+      - name: "Stairwell Temperature"
+        unique_id: climate_trepihall_temperature
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.climate_trepihall_temperature') }}"
+        availability: "{{ states('sensor.climate_trepihall_temperature') not in ['unknown', 'unavailable'] }}"
+
+      - name: "Stairwell Humidity"
+        unique_id: climate_trepihall_humidity
+        device_class: humidity
+        state_class: measurement
+        unit_of_measurement: "%"
+        state: "{{ states('sensor.climate_trepihall_humidity') }}"
+        availability: "{{ states('sensor.climate_trepihall_humidity') not in ['unknown', 'unavailable'] }}"
