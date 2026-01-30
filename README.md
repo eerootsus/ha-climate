@@ -10,6 +10,7 @@ Pyscript-based climate control for Danfoss TRVs in Home Assistant.
 - Updates TRV external temperature sensors from virtual room sensors
 - Syncs time on TRVs (weekly)
 - Manages radiator covered attribute based on device labels
+- Automatic retry queue for failed Zigbee writes (exponential backoff)
 
 ## Home Assistant Setup
 
@@ -92,6 +93,34 @@ homeassistant:
 | Tuesday 3:00 AM | `disable_load_balancing` | Weekly load balancing disable (for single-TRV rooms) |
 | Every 5 min | `update_room_climate_sensors` | Update virtual sensor values |
 | Every 5 min | `update_external_temperatures` | Push room temp to TRVs |
+| Every 1 min | `process_pending_writes` | Retry failed Zigbee writes |
+
+---
+
+## Zigbee Message Queue
+
+All Zigbee writes go through a retry queue. If a write fails (timeout or error), it's queued for retry with exponential backoff:
+
+| Retry | Delay |
+|-------|-------|
+| 1 | 1 min |
+| 2 | 2 min |
+| 3 | 4 min |
+| 4 | 8 min |
+| 5 | 16 min |
+| 6 | 32 min |
+| 7 | ~1 hour |
+| 8 | ~2 hours |
+| 9-10 | 4 hours (max) |
+
+After 10 retries, the write is abandoned and logged as an error.
+
+**Key behaviors:**
+- Newer writes for the same device+attribute replace pending ones (stale values discarded)
+- Queue is in-memory only (cleared on HA restart)
+- Battery-powered TRVs often sleep, causing timeouts—the queue handles this gracefully
+
+**Debug service:** Call `pyscript.get_pending_writes` from Developer Tools → Services to inspect the current queue.
 
 ---
 

@@ -35,6 +35,8 @@ No build step required. Dependencies in `requirements.txt` are Home Assistant's 
   - `disable_load_balancing()` - Weekly disable of load balancing (only needed for multi-TRV rooms)
   - `update_room_climate_sensors()` - Every 5 min, creates virtual `sensor.climate_{area_id}_{type}` entities
   - `update_external_temperatures()` - Pushes virtual sensor values back to TRV external sensor attribute
+  - `process_pending_writes()` - Every 1 min, retries failed Zigbee writes
+- **Zigbee Retry Queue**: All writes go through `queue_zigbee_write()` which attempts immediately and queues failures for retry with exponential backoff (60s base, 4h max, 10 retries). Newer writes replace pending ones for same device+attribute.
 
 **trv-climate/climate.yaml** - Template sensor definitions wrapping pyscript-created sensors for proper HA UI management.
 
@@ -46,6 +48,14 @@ CLUSTER_THERMOSTAT = 0x0201     # Thermostat cluster
 ATTR_RADIATOR_COVERED = 0x4016  # Manufacturer-specific
 ATTR_EXTERNAL_MEASURED_ROOM_SENSOR = 0x4015
 ATTR_LOAD_BALANCING_ENABLE = 0x4032
+```
+
+## Retry Queue Configuration
+
+```python
+MAX_RETRIES = 10
+BASE_DELAY_SECONDS = 60   # Doubles each retry
+MAX_DELAY_SECONDS = 14400 # 4 hours cap
 ```
 
 ## Device Labels

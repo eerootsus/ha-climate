@@ -1,4 +1,5 @@
 import datetime
+import time
 from logging import Logger
 from homeassistant.core import HomeAssistant
 from homeassistant.components.zha.const import DOMAIN as ZHA_DOMAIN
@@ -8,6 +9,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.components.sensor import SensorDeviceClass
 from zigpy.types.named import EUI64
 from zha.zigbee.device import Device
+from zha.exceptions import ZHAException
 
 DEVICE_MODEL = "eTRV0103"
 ENDPOINT_ID = 1
@@ -27,6 +29,15 @@ EXTERNAL_SENSOR_DISABLED = -8000
 
 LABEL_RADIATOR_COVERED = "radiator_covered"
 LABEL_SENSOR_WEIGHT_PREFIX = "sensor_weight_"
+
+# Retry queue configuration
+MAX_RETRIES = 10
+BASE_DELAY_SECONDS = 60  # 1 minute, doubles each retry
+MAX_DELAY_SECONDS = 14400  # 4 hours
+
+# Pending writes: {(device_id, cluster, attribute): {...}}
+# Using module-level dict for PyScript compatibility
+_pending_writes = {}
 
 
 hass: HomeAssistant
@@ -96,6 +107,153 @@ def get_zigbee_device(device: DeviceEntry) -> Device | None:
         return None
 
     return zha_gateway.get_device(ieee)
+
+
+async def queue_zigbee_write(
+    device: DeviceEntry,
+    cluster: int,
+    attribute: int,
+    value,
+    description: str = "",
+) -> bool:
+    """Queue a Zigbee write and attempt immediately.
+
+    If the write fails, it will be retried with exponential backoff.
+    Newer writes for the same device+cluster+attribute replace pending ones.
+    Returns True if write succeeded immediately, False if queued for retry.
+    """
+    key = (device.id, cluster, attribute)
+
+    zha_device = get_zigbee_device(device)
+    if zha_device is None:
+        log.error(f"Device {device.name_by_user} ({device.id}) not found in ZHA network")
+        return False
+
+    # Try immediately
+    success = await attempt_zigbee_write(device, zha_device, cluster, attribute, value, description)
+
+    if success:
+        # Remove from queue if it was there
+        if key in _pending_writes:
+            del _pending_writes[key]
+        return True
+
+    # Queue for retry
+    _pending_writes[key] = {
+        'device_id': device.id,
+        'device_name': device.name_by_user,
+        'cluster': cluster,
+        'attribute': attribute,
+        'value': value,
+        'description': description,
+        'retry_count': 0,
+        'last_attempt': time.time(),
+    }
+    log.info(f"Queued write for retry: {description or key}")
+    return False
+
+
+async def attempt_zigbee_write(
+    device: DeviceEntry,
+    zha_device: Device,
+    cluster: int,
+    attribute: int,
+    value,
+    description: str = "",
+) -> bool:
+    """Attempt a single Zigbee write. Returns True on success, False on failure."""
+    try:
+        response = await zha_device.write_zigbee_attribute(
+            ENDPOINT_ID,
+            cluster,
+            attribute,
+            value,
+            cluster_type=CLUSTER_TYPE,
+            manufacturer=zha_device.manufacturer_code,
+        )
+    except TimeoutError:
+        log.warning(f"Timeout writing {description or attribute} for device {device.name_by_user} ({device.id}) - device may be asleep")
+        return False
+    except ZHAException as e:
+        log.warning(f"ZHA error writing {description or attribute} for device {device.name_by_user} ({device.id}): {e}")
+        return False
+
+    if response is None:
+        log.error(f"Failed to write {description or attribute} for device {device.name_by_user} ({device.id})")
+        return False
+
+    return True
+
+
+@service
+def get_pending_writes():
+    """Return current pending write queue for debugging."""
+    return {
+        f"{k[0][:8]}.../{k[1]:04x}/{k[2]:04x}": {
+            'device': v['device_name'],
+            'value': v['value'],
+            'retries': v['retry_count'],
+            'description': v['description'],
+        }
+        for k, v in _pending_writes.items()
+    }
+
+
+@time_trigger("cron(* * * * *)")
+async def process_pending_writes():
+    """Process pending Zigbee writes with exponential backoff."""
+    if not _pending_writes:
+        return
+
+    now = time.time()
+    dr = device_registry.async_get(hass)
+
+    for key in list(_pending_writes.keys()):
+        entry = _pending_writes[key]
+
+        # Calculate delay with exponential backoff, capped at MAX_DELAY_SECONDS
+        delay = min(BASE_DELAY_SECONDS * (2 ** entry['retry_count']), MAX_DELAY_SECONDS)
+
+        if now - entry['last_attempt'] < delay:
+            continue
+
+        device_id = entry['device_id']
+        device = dr.async_get(device_id)
+        if device is None:
+            log.warning(f"Device {device_id} no longer exists, removing from queue")
+            del _pending_writes[key]
+            continue
+
+        zha_device = get_zigbee_device(device)
+        if zha_device is None:
+            log.error(f"Device {entry['device_name']} ({device_id}) not found in ZHA network")
+            entry['retry_count'] += 1
+            entry['last_attempt'] = now
+            if entry['retry_count'] >= MAX_RETRIES:
+                log.error(f"Giving up on {entry['description'] or key} after {MAX_RETRIES} retries")
+                del _pending_writes[key]
+            continue
+
+        log.info(f"Retrying write ({entry['retry_count'] + 1}/{MAX_RETRIES}): {entry['description'] or key}")
+
+        success = await attempt_zigbee_write(
+            device,
+            zha_device,
+            entry['cluster'],
+            entry['attribute'],
+            entry['value'],
+            entry['description'],
+        )
+
+        if success:
+            log.info(f"Retry succeeded: {entry['description'] or key}")
+            del _pending_writes[key]
+        else:
+            entry['retry_count'] += 1
+            entry['last_attempt'] = now
+            if entry['retry_count'] >= MAX_RETRIES:
+                log.error(f"Giving up on {entry['description'] or key} after {MAX_RETRIES} retries")
+                del _pending_writes[key]
 
 
 def get_climate_entity_for_device(device: DeviceEntry, device_class: SensorDeviceClass) -> str | None:
@@ -209,32 +367,19 @@ async def set_time():
     """Set current time on TRV devices. Runs at startup and weekly (Sunday 3:00 AM)."""
     log.info("Setting current time on devices")
     epoch = datetime.datetime(2000, 1, 1, 0, 0, 0, 0, datetime.UTC)
+    zigbee_time = (datetime.datetime.now(datetime.UTC) - epoch).total_seconds()
+
     for device in get_trv_devices():
         log.info(f"Setting time on device: {device.name_by_user} ({device.id})")
-        zha_device = get_zigbee_device(device)
-        if zha_device is None:
-            log.error(f"Device {device.name_by_user} ({device.id}) not found in ZHA network")
-            continue
-
-        cluster = zha_device.async_get_cluster(
-            ENDPOINT_ID, CLUSTER_TIME, cluster_type=CLUSTER_TYPE
+        success = await queue_zigbee_write(
+            device,
+            CLUSTER_TIME,
+            ATTR_TIME,
+            zigbee_time,
+            description=f"time sync for {device.name_by_user}",
         )
-
-        time = (datetime.datetime.now(datetime.UTC) - epoch).total_seconds()
-
-        try:
-            response = await zha_device.write_zigbee_attribute(
-                ENDPOINT_ID, CLUSTER_TIME, ATTR_TIME, time, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
-            )
-        except TimeoutError:
-            log.warning(f"Timeout setting time on device {device.name_by_user} ({device.id}) - device may be asleep")
-            continue
-
-        if response is None:
-            log.error(f"Failed to update time for device {device.name_by_user} ({device.id})")
-            continue
-
-        log.info(f"Successfully set time on device {device.name_by_user} ({device.id})")
+        if success:
+            log.info(f"Successfully set time on device {device.name_by_user} ({device.id})")
 
 
 @service
@@ -255,11 +400,14 @@ async def radiator_covered():
         )
 
         try:
-            success, failure = await cluster.read_attributes(
+            read_success, failure = await cluster.read_attributes(
                 [ATTR_RADIATOR_COVERED], allow_cache=False, only_cache=False, manufacturer=zha_device.manufacturer_code
             )
         except TimeoutError:
             log.warning(f"Timeout reading radiator covered for device {device.name_by_user} ({device.id}) - device may be asleep")
+            continue
+        except ZHAException as e:
+            log.warning(f"ZHA error reading radiator covered for device {device.name_by_user} ({device.id}): {e}")
             continue
 
         if failure:
@@ -268,23 +416,19 @@ async def radiator_covered():
 
         should_be_true = LABEL_RADIATOR_COVERED in device.labels
 
-        if success.get(ATTR_RADIATOR_COVERED) == should_be_true:
+        if read_success.get(ATTR_RADIATOR_COVERED) == should_be_true:
             log.info(f"Radiator covered attribute is correct ({should_be_true}) for device {device.name_by_user} ({device.id})")
             continue
 
-        try:
-            response = await zha_device.write_zigbee_attribute(
-                ENDPOINT_ID, CLUSTER_THERMOSTAT, ATTR_RADIATOR_COVERED, should_be_true, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
-            )
-        except TimeoutError:
-            log.warning(f"Timeout writing radiator covered for device {device.name_by_user} ({device.id}) - device may be asleep")
-            continue
-
-        if response is None:
-            log.error(f"Failed to write radiator covered attribute for device {device.name_by_user} ({device.id})")
-            continue
-
-        log.info(f"Successfully set radiator covered attribute {should_be_true} for device {device.name_by_user} ({device.id})")
+        success = await queue_zigbee_write(
+            device,
+            CLUSTER_THERMOSTAT,
+            ATTR_RADIATOR_COVERED,
+            should_be_true,
+            description=f"radiator_covered={should_be_true} for {device.name_by_user}",
+        )
+        if success:
+            log.info(f"Successfully set radiator covered attribute {should_be_true} for device {device.name_by_user} ({device.id})")
 
     log.info("Done checking radiator covered attributes")
 
@@ -311,34 +455,33 @@ async def disable_load_balancing():
         )
 
         try:
-            success, failure = await cluster.read_attributes(
+            read_success, failure = await cluster.read_attributes(
                 [ATTR_LOAD_BALANCING_ENABLE], allow_cache=False, only_cache=False, manufacturer=zha_device.manufacturer_code
             )
         except TimeoutError:
             log.warning(f"Timeout reading load balancing for device {device.name_by_user} ({device.id}) - device may be asleep")
+            continue
+        except ZHAException as e:
+            log.warning(f"ZHA error reading load balancing for device {device.name_by_user} ({device.id}): {e}")
             continue
 
         if failure:
             log.error(f"Failed to read load balancing attribute for device {device.name_by_user} ({device.id})")
             continue
 
-        if success.get(ATTR_LOAD_BALANCING_ENABLE) is False:
+        if read_success.get(ATTR_LOAD_BALANCING_ENABLE) is False:
             log.info(f"Load balancing already disabled for device {device.name_by_user} ({device.id})")
             continue
 
-        try:
-            response = await zha_device.write_zigbee_attribute(
-                ENDPOINT_ID, CLUSTER_THERMOSTAT, ATTR_LOAD_BALANCING_ENABLE, False, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
-            )
-        except TimeoutError:
-            log.warning(f"Timeout disabling load balancing for device {device.name_by_user} ({device.id}) - device may be asleep")
-            continue
-
-        if response is None:
-            log.error(f"Failed to disable load balancing for device {device.name_by_user} ({device.id})")
-            continue
-
-        log.info(f"Successfully disabled load balancing for device {device.name_by_user} ({device.id})")
+        success = await queue_zigbee_write(
+            device,
+            CLUSTER_THERMOSTAT,
+            ATTR_LOAD_BALANCING_ENABLE,
+            False,
+            description=f"disable load balancing for {device.name_by_user}",
+        )
+        if success:
+            log.info(f"Successfully disabled load balancing for device {device.name_by_user} ({device.id})")
 
     log.info("Done disabling load balancing")
 
@@ -444,31 +587,22 @@ async def update_external_temperatures():
                 temperature = EXTERNAL_SENSOR_DISABLED
 
         for device in devices:
-            zha_device = get_zigbee_device(device)
-            if zha_device is None:
-                log.error(f"Device {device.name_by_user} ({device.id}) not found in ZHA network")
-                continue
-
-            try:
-                response = await zha_device.write_zigbee_attribute(
-                    ENDPOINT_ID,
-                    CLUSTER_THERMOSTAT,
-                    ATTR_EXTERNAL_MEASURED_ROOM_SENSOR,
-                    temperature,
-                    cluster_type=CLUSTER_TYPE,
-                    manufacturer=zha_device.manufacturer_code,
-                )
-            except TimeoutError:
-                log.warning(f"Timeout writing external temperature for device {device.name_by_user} ({device.id}) - device may be asleep")
-                continue
-
-            if response is None:
-                log.error(f"Failed to write external temperature for device {device.name_by_user} ({device.id})")
-                continue
-
             if temperature == EXTERNAL_SENSOR_DISABLED:
-                log.info(f"Disabled external sensor for device {device.name_by_user} ({device.id})")
+                description = f"disable external sensor for {device.name_by_user}"
             else:
-                log.info(f"Set external temperature {temperature / 100:.1f}°C on device {device.name_by_user} ({device.id})")
+                description = f"external temp {temperature / 100:.1f}°C for {device.name_by_user}"
+
+            success = await queue_zigbee_write(
+                device,
+                CLUSTER_THERMOSTAT,
+                ATTR_EXTERNAL_MEASURED_ROOM_SENSOR,
+                temperature,
+                description=description,
+            )
+            if success:
+                if temperature == EXTERNAL_SENSOR_DISABLED:
+                    log.info(f"Disabled external sensor for device {device.name_by_user} ({device.id})")
+                else:
+                    log.info(f"Set external temperature {temperature / 100:.1f}°C on device {device.name_by_user} ({device.id})")
 
     log.info("Done updating external temperatures")
