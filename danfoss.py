@@ -167,13 +167,13 @@ def calculate_weighted_climate(
 ) -> float | None:
     """Calculate weighted average for climate sensors of specified device_class.
 
-    Includes TRV sensors (weight 1) and any additional weighted devices.
+    Includes TRV sensors (weight 0.5) and any additional weighted devices.
     Returns weighted average value or None if no valid readings.
     """
     total_weighted_value = 0.0
     total_weight = 0.0
 
-    # Include TRV sensors with weight 1
+    # Include TRV sensors with weight 0.5
     for device in trv_devices:
         entity_id = get_climate_entity_for_device(device, device_class)
         if entity_id is None:
@@ -181,9 +181,9 @@ def calculate_weighted_climate(
 
         value = get_sensor_value(entity_id)
         if value is not None:
-            log.debug(f"TRV {device.name_by_user} {device_class}: {value} (weight 1)")
-            total_weighted_value += value * 1.0
-            total_weight += 1.0
+            log.debug(f"TRV {device.name_by_user} {device_class}: {value} (weight 0.5)")
+            total_weighted_value += value * 0.5
+            total_weight += 0.5
 
     # Include weighted devices
     for device, weight in weighted_devices:
