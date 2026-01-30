@@ -236,9 +236,13 @@ async def set_time():
 
         time = (datetime.datetime.now(datetime.UTC) - epoch).total_seconds()
 
-        response = zha_device.write_zigbee_attribute(
-            ENDPOINT_ID, CLUSTER_TIME, ATTR_TIME, time, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
-        )
+        try:
+            response = await zha_device.write_zigbee_attribute(
+                ENDPOINT_ID, CLUSTER_TIME, ATTR_TIME, time, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
+            )
+        except TimeoutError:
+            log.warning(f"Timeout setting time on device {device.name_by_user} ({device.id}) - device may be asleep")
+            continue
 
         if response is None:
             log.error(f"Failed to update time for device {device.name_by_user} ({device.id})")
@@ -263,9 +267,14 @@ async def radiator_covered():
         cluster = zha_device.async_get_cluster(
             ENDPOINT_ID, CLUSTER_THERMOSTAT, cluster_type=CLUSTER_TYPE
         )
-        success, failure = cluster.read_attributes(
-            [ATTR_RADIATOR_COVERED], allow_cache=False, only_cache=False, manufacturer=zha_device.manufacturer_code
-        )
+
+        try:
+            success, failure = await cluster.read_attributes(
+                [ATTR_RADIATOR_COVERED], allow_cache=False, only_cache=False, manufacturer=zha_device.manufacturer_code
+            )
+        except TimeoutError:
+            log.warning(f"Timeout reading radiator covered for device {device.name_by_user} ({device.id}) - device may be asleep")
+            continue
 
         if failure:
             log.error(f"Failed to read radiator covered attribute for device {device.name_by_user} ({device.id})")
@@ -277,9 +286,13 @@ async def radiator_covered():
             log.info(f"Radiator covered attribute is correct ({should_be_true}) for device {device.name_by_user} ({device.id})")
             continue
 
-        response = zha_device.write_zigbee_attribute(
-            ENDPOINT_ID, CLUSTER_THERMOSTAT, ATTR_RADIATOR_COVERED, should_be_true, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
-        )
+        try:
+            response = await zha_device.write_zigbee_attribute(
+                ENDPOINT_ID, CLUSTER_THERMOSTAT, ATTR_RADIATOR_COVERED, should_be_true, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
+            )
+        except TimeoutError:
+            log.warning(f"Timeout writing radiator covered for device {device.name_by_user} ({device.id}) - device may be asleep")
+            continue
 
         if response is None:
             log.error(f"Failed to write radiator covered attribute for device {device.name_by_user} ({device.id})")
@@ -310,9 +323,14 @@ async def disable_load_balancing():
         cluster = zha_device.async_get_cluster(
             ENDPOINT_ID, CLUSTER_THERMOSTAT, cluster_type=CLUSTER_TYPE
         )
-        success, failure = cluster.read_attributes(
-            [ATTR_LOAD_BALANCING_ENABLE], allow_cache=False, only_cache=False, manufacturer=zha_device.manufacturer_code
-        )
+
+        try:
+            success, failure = await cluster.read_attributes(
+                [ATTR_LOAD_BALANCING_ENABLE], allow_cache=False, only_cache=False, manufacturer=zha_device.manufacturer_code
+            )
+        except TimeoutError:
+            log.warning(f"Timeout reading load balancing for device {device.name_by_user} ({device.id}) - device may be asleep")
+            continue
 
         if failure:
             log.error(f"Failed to read load balancing attribute for device {device.name_by_user} ({device.id})")
@@ -322,9 +340,13 @@ async def disable_load_balancing():
             log.info(f"Load balancing already disabled for device {device.name_by_user} ({device.id})")
             continue
 
-        response = zha_device.write_zigbee_attribute(
-            ENDPOINT_ID, CLUSTER_THERMOSTAT, ATTR_LOAD_BALANCING_ENABLE, False, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
-        )
+        try:
+            response = await zha_device.write_zigbee_attribute(
+                ENDPOINT_ID, CLUSTER_THERMOSTAT, ATTR_LOAD_BALANCING_ENABLE, False, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
+            )
+        except TimeoutError:
+            log.warning(f"Timeout disabling load balancing for device {device.name_by_user} ({device.id}) - device may be asleep")
+            continue
 
         if response is None:
             log.error(f"Failed to disable load balancing for device {device.name_by_user} ({device.id})")
@@ -425,14 +447,18 @@ async def update_external_temperatures():
                 log.error(f"Device {device.name_by_user} ({device.id}) not found in ZHA network")
                 continue
 
-            response = zha_device.write_zigbee_attribute(
-                ENDPOINT_ID,
-                CLUSTER_THERMOSTAT,
-                ATTR_EXTERNAL_MEASURED_ROOM_SENSOR,
-                temperature,
-                cluster_type=CLUSTER_TYPE,
-                manufacturer=zha_device.manufacturer_code,
-            )
+            try:
+                response = await zha_device.write_zigbee_attribute(
+                    ENDPOINT_ID,
+                    CLUSTER_THERMOSTAT,
+                    ATTR_EXTERNAL_MEASURED_ROOM_SENSOR,
+                    temperature,
+                    cluster_type=CLUSTER_TYPE,
+                    manufacturer=zha_device.manufacturer_code,
+                )
+            except TimeoutError:
+                log.warning(f"Timeout writing external temperature for device {device.name_by_user} ({device.id}) - device may be asleep")
+                continue
 
             if response is None:
                 log.error(f"Failed to write external temperature for device {device.name_by_user} ({device.id})")
