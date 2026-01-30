@@ -45,7 +45,7 @@ Settings → System → Restart
 The pyscript creates virtual sensors (`sensor.climate_{area_id}_temperature`) by:
 1. Finding all TRVs assigned to each area
 2. Reading `current_temperature` from each TRV's climate entity
-3. Calculating weighted average (TRVs have weight 1, external sensors use their label weight)
+3. Calculating weighted average (TRVs have weight 0.5, external sensors use their label weight)
 4. Creating virtual sensor entities
 
 The template sensors in `sensors/climate.yaml` wrap these with proper `unique_id` for UI management (area assignment, customization).
@@ -61,17 +61,35 @@ To add external temperature sensors (e.g., a separate Zigbee sensor):
 - `radiator_covered` - Sets the TRV's radiator covered attribute (for TRVs behind furniture/curtains)
 - `sensor_weight_X` - Includes device's temperature sensor in room average with weight X
 
+### Enable History Graphs for Load Estimates
+
+The TRV load estimate sensors don't have `state_class` set by default, so Home Assistant won't record history. To enable graphs, add to `configuration.yaml`:
+
+```yaml
+homeassistant:
+  customize:
+    sensor.trv_danfoss_ada_load_estimate:
+      state_class: measurement
+    sensor.trv_danfoss_kitchen_load_estimate:
+      state_class: measurement
+    sensor.trv_danfoss_lola_load_estimate:
+      state_class: measurement
+    sensor.trv_danfoss_master_load_estimate:
+      state_class: measurement
+    sensor.trv_danfoss_stairwell_load_estimate:
+      state_class: measurement
+```
+
 ---
 
 ## Scheduled Tasks
 
 | Schedule | Function | Description |
 |----------|----------|-------------|
-| Startup | `set_time` | Sync time on all TRVs |
-| Startup | `radiator_covered` | Check/set radiator covered attributes |
-| Startup | `update_room_climate_sensors` | Create virtual sensors |
-| Sunday 3:00 | `set_time` | Weekly time sync |
-| Sunday 3:00 | `radiator_covered` | Weekly attribute check |
+| Startup | `startup` | Runs all init tasks sequentially (avoids Zigbee congestion) |
+| Sunday 3:00 AM | `set_time` | Weekly time sync on all TRVs |
+| Monday 3:00 AM | `radiator_covered` | Weekly radiator covered attribute check |
+| Tuesday 3:00 AM | `disable_load_balancing` | Weekly load balancing disable (for single-TRV rooms) |
 | Every 5 min | `update_room_climate_sensors` | Update virtual sensor values |
 | Every 5 min | `update_external_temperatures` | Push room temp to TRVs |
 
