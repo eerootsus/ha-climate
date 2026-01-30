@@ -163,30 +163,16 @@ def get_sensor_value(entity_id: str) -> float | None:
 
 def calculate_weighted_climate(
     device_class: SensorDeviceClass,
-    trv_devices: list[DeviceEntry],
     weighted_devices: list[tuple[DeviceEntry, float]],
 ) -> float | None:
     """Calculate weighted average for climate sensors of specified device_class.
 
-    Includes TRV sensors (weight 0.5) and any additional weighted devices.
+    Only uses external weighted sensors (not TRV temperatures).
     Returns weighted average value or None if no valid readings.
     """
     total_weighted_value = 0.0
     total_weight = 0.0
 
-    # Include TRV sensors with weight 0.5
-    for device in trv_devices:
-        entity_id = get_climate_entity_for_device(device, device_class)
-        if entity_id is None:
-            continue
-
-        value = get_sensor_value(entity_id)
-        if value is not None:
-            log.debug(f"TRV {device.name_by_user} {device_class}: {value} (weight 0.5)")
-            total_weighted_value += value * 0.5
-            total_weight += 0.5
-
-    # Include weighted devices
     for device, weight in weighted_devices:
         entity_id = get_climate_entity_for_device(device, device_class)
         if entity_id is None:
@@ -360,7 +346,12 @@ async def disable_load_balancing():
 @service
 @time_trigger("cron(*/5 * * * *)")
 async def update_room_climate_sensors():
-    """Update virtual room climate sensors from TRV and weighted physical sensors."""
+    """Update virtual room climate sensors from external weighted sensors only.
+
+    TRV temperatures are excluded to avoid skewing averages when radiators are heating.
+    If no external sensors exist for an area, the virtual sensor is set to unavailable,
+    which causes the TRV to use its internal temperature sensor.
+    """
     log.info("Updating room climate sensors")
 
     ar = area_registry.async_get(hass)
@@ -373,8 +364,8 @@ async def update_room_climate_sensors():
         area_name = area.name if area else area_id
         weighted_devices = weighted_devices_by_area.get(area_id, [])
 
-        # Calculate weighted temperature (TRVs + weighted devices)
-        temperature = calculate_weighted_climate(SensorDeviceClass.TEMPERATURE, trv_devices, weighted_devices)
+        # Calculate weighted temperature from external sensors only
+        temperature = calculate_weighted_climate(SensorDeviceClass.TEMPERATURE, weighted_devices)
         if temperature is not None:
             state.set(
                 f"sensor.climate_{area_id}_temperature",
@@ -388,10 +379,21 @@ async def update_room_climate_sensors():
             )
             log.info(f"Area {area_name}: set virtual temperature sensor to {temperature:.1f}°C")
         else:
-            log.warning(f"Area {area_name}: no valid temperature readings")
+            # No external sensors - set to unavailable so TRV uses internal temperature
+            state.set(
+                f"sensor.climate_{area_id}_temperature",
+                value="unavailable",
+                new_attributes={
+                    "unit_of_measurement": "°C",
+                    "device_class": "temperature",
+                    "state_class": "measurement",
+                    "friendly_name": f"{area_name} Temperature",
+                },
+            )
+            log.info(f"Area {area_name}: no external sensors, TRV will use internal temperature")
 
-        # Calculate weighted humidity (TRVs + weighted devices)
-        humidity = calculate_weighted_climate(SensorDeviceClass.HUMIDITY, trv_devices, weighted_devices)
+        # Calculate weighted humidity from external sensors only
+        humidity = calculate_weighted_climate(SensorDeviceClass.HUMIDITY, weighted_devices)
         if humidity is not None:
             state.set(
                 f"sensor.climate_{area_id}_humidity",
@@ -405,7 +407,7 @@ async def update_room_climate_sensors():
             )
             log.info(f"Area {area_name}: set virtual humidity sensor to {humidity:.1f}%")
         else:
-            log.debug(f"Area {area_name}: no valid humidity readings")
+            log.debug(f"Area {area_name}: no external humidity sensors")
 
     log.info("Done updating room climate sensors")
 
