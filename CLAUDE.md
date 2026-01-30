@@ -32,6 +32,7 @@ No build step required. Dependencies in `requirements.txt` are Home Assistant's 
 - **Scheduled Tasks** (PyScript time_trigger decorators):
   - `set_time()` - Weekly time sync to TRV Zigbee cluster
   - `radiator_covered()` - Weekly check/update of radiator obstruction attribute based on device labels
+  - `disable_load_balancing()` - Weekly disable of load balancing (only needed for multi-TRV rooms)
   - `update_room_climate_sensors()` - Every 5 min, creates virtual `sensor.climate_{area_id}_{type}` entities
   - `update_external_temperatures()` - Pushes virtual sensor values back to TRV external sensor attribute
 
@@ -44,6 +45,7 @@ CLUSTER_TIME = 0x000A           # Time cluster
 CLUSTER_THERMOSTAT = 0x0201     # Thermostat cluster
 ATTR_RADIATOR_COVERED = 0x4016  # Manufacturer-specific
 ATTR_EXTERNAL_MEASURED_ROOM_SENSOR = 0x4015
+ATTR_LOAD_BALANCING_ENABLE = 0x4032
 ```
 
 ## Device Labels

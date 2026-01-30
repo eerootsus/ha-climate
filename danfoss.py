@@ -21,6 +21,7 @@ ATTR_TIME = 0x0000
 ATTR_SW_ERROR = 0x4000
 ATTR_RADIATOR_COVERED = 0x4016
 ATTR_EXTERNAL_MEASURED_ROOM_SENSOR = 0x4015
+ATTR_LOAD_BALANCING_ENABLE = 0x4032
 
 EXTERNAL_SENSOR_DISABLED = -8000
 
@@ -206,6 +207,17 @@ def calculate_weighted_climate(
 
 @service
 @time_trigger("startup")
+async def startup():
+    """Run all initialization tasks sequentially to avoid overwhelming Zigbee network."""
+    log.info("Running startup tasks")
+    await set_time()
+    await radiator_covered()
+    await disable_load_balancing()
+    await update_room_climate_sensors()
+    log.info("Startup tasks complete")
+
+
+@service
 @time_trigger("cron(0 3 * * 0)")
 async def set_time():
     """Set current time on TRV devices. Runs at startup and weekly (Sunday 3:00 AM)."""
@@ -236,10 +248,9 @@ async def set_time():
 
 
 @service
-@time_trigger("startup")
-@time_trigger("cron(0 3 * * 0)")
+@time_trigger("cron(0 3 * * 1)")
 async def radiator_covered():
-    """Check and set radiator covered attributes. Runs at startup and weekly (Sunday 3:00 AM)."""
+    """Check and set radiator covered attributes. Runs at startup and weekly (Monday 3:00 AM)."""
     log.info("Checking radiator covered attributes")
 
     for device in get_trv_devices():
@@ -280,7 +291,51 @@ async def radiator_covered():
 
 
 @service
-@time_trigger("startup")
+@time_trigger("cron(0 3 * * 2)")
+async def disable_load_balancing():
+    """Disable load balancing on all TRVs. Runs at startup and weekly (Tuesday 3:00 AM).
+
+    Load balancing should only be used in rooms with 2+ TRVs. Since we have
+    one TRV per room, it should be disabled on all devices.
+    """
+    log.info("Disabling load balancing on all TRVs")
+
+    for device in get_trv_devices():
+        log.info(f"Disabling load balancing: {device.name_by_user} ({device.id})")
+        zha_device = get_zigbee_device(device)
+        if zha_device is None:
+            log.error(f"Device {device.name_by_user} ({device.id}) not found in ZHA network")
+            continue
+
+        cluster = zha_device.async_get_cluster(
+            ENDPOINT_ID, CLUSTER_THERMOSTAT, cluster_type=CLUSTER_TYPE
+        )
+        success, failure = cluster.read_attributes(
+            [ATTR_LOAD_BALANCING_ENABLE], allow_cache=False, only_cache=False, manufacturer=zha_device.manufacturer_code
+        )
+
+        if failure:
+            log.error(f"Failed to read load balancing attribute for device {device.name_by_user} ({device.id})")
+            continue
+
+        if success.get(ATTR_LOAD_BALANCING_ENABLE) is False:
+            log.info(f"Load balancing already disabled for device {device.name_by_user} ({device.id})")
+            continue
+
+        response = zha_device.write_zigbee_attribute(
+            ENDPOINT_ID, CLUSTER_THERMOSTAT, ATTR_LOAD_BALANCING_ENABLE, False, cluster_type=CLUSTER_TYPE, manufacturer=zha_device.manufacturer_code,
+        )
+
+        if response is None:
+            log.error(f"Failed to disable load balancing for device {device.name_by_user} ({device.id})")
+            continue
+
+        log.info(f"Successfully disabled load balancing for device {device.name_by_user} ({device.id})")
+
+    log.info("Done disabling load balancing")
+
+
+@service
 @time_trigger("cron(*/5 * * * *)")
 async def update_room_climate_sensors():
     """Update virtual room climate sensors from TRV and weighted physical sensors."""
