@@ -187,16 +187,14 @@ async def attempt_zigbee_write(
 
 @service
 def get_pending_writes():
-    """Return current pending write queue for debugging."""
-    return {
-        f"{k[0][:8]}.../{k[1]:04x}/{k[2]:04x}": {
-            'device': v['device_name'],
-            'value': v['value'],
-            'retries': v['retry_count'],
-            'description': v['description'],
-        }
-        for k, v in _pending_writes.items()
-    }
+    """Log current pending write queue for debugging."""
+    if not _pending_writes:
+        log.info("Pending writes queue is empty")
+        return
+
+    log.info(f"Pending writes queue ({len(_pending_writes)} items):")
+    for key, entry in _pending_writes.items():
+        log.info(f"  - {entry['description']}: value={entry['value']}, retries={entry['retry_count']}")
 
 
 @time_trigger("cron(* * * * *)")
