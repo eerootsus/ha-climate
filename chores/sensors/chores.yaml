@@ -140,7 +140,7 @@ template:
 
       - name: Chore Dust 1
         unique_id: chore_dust_1_sensor
-        icon: mdi:robot-vacuum
+        icon: mdi:vacuum
         state: >
           {% set person = states('input_select.chore_dust_1') %}
           {% set names = {
@@ -163,7 +163,7 @@ template:
 
       - name: Chore Dust Basement
         unique_id: chore_dust_basement_sensor
-        icon: mdi:robot-vacuum
+        icon: mdi:broom
         state: >
           {% set person = states('input_select.chore_dust_basement') %}
           {% set names = {

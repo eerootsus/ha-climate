@@ -49,7 +49,7 @@ input_select:
 
   chore_dust_1:
     name: Tolmutoimkond 1. korrus
-    icon: mdi:robot-vacuum
+    icon: mdi:vacuum
     options:
       - person.eero_otsus
       - person.katlyn_otsus
@@ -57,7 +57,7 @@ input_select:
 
   chore_dust_basement:
     name: Tolmutoimkond sokkel
-    icon: mdi:robot-vacuum
+    icon: mdi:broom
     options:
       - person.eero_otsus
       - person.katlyn_otsus
