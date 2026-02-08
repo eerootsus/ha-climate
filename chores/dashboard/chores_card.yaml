@@ -22,26 +22,8 @@ entities:
 card_mod:
   style: |
     .card-header {
-      padding: 4px 8px !important;
-      font-size: 20px !important;
+      font-weight: 700;
     }
-    #states > * {
-      margin: 0 !important;
+    #states {
+      font-size: 18px;
     }
-    #states .div-entities > :first-child {
-      margin-top: 0 !important;
-    }
-  style_entities:
-    "*":
-      hui-generic-entity-row$: |
-        .info, .text-content {
-          padding: 2px 0 !important;
-        }
-      .: |
-        :host {
-          --paper-item-min-height: 28px;
-        }
-        div.entity-row {
-          padding: 0 8px !important;
-          min-height: 28px !important;
-        }

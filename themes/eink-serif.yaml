@@ -1,6 +1,7 @@
 eink-serif:
   modes:
     light:
+
       # Serif font stack (new HA 2025.5+ variables)
       ha-font-family-body: "'Georgia', 'Times New Roman', 'Palatino Linotype', serif"
       ha-font-family-heading: "'Georgia', 'Times New Roman', 'Palatino Linotype', serif"
@@ -8,7 +9,7 @@ eink-serif:
       ha-font-family-code: "'Courier New', monospace"
 
       # Font size scale multiplier (1.0 = default, 1.15 = 15% larger)
-      ha-font-size-scale: "1.15"
+      ha-font-size-scale: "1.2"
 
       # Individual font sizes
       ha-font-size-2xs: "11px"
@@ -22,19 +23,31 @@ eink-serif:
       ha-font-size-4xl: "44px"
 
       # Card header
-      ha-card-header-font-size: "24px"
+      ha-card-header-font-size: "20px"
 
       # Remove card borders, padding, and margins
       ha-card-border-width: "0px"
       ha-card-border-radius: "0px"
       ha-card-box-shadow: "none"
-
-      # Remove page/view padding and card margins
-      ha-view-padding: "0px"
-      ha-section-grid-margin: "0px"
       ha-card-padding: "0px"
 
+      # Remove page/view padding and grid margins
+      ha-view-padding: "0px"
+      ha-section-grid-margin: "0px"
+
+      # Compact spacing
+      entities-card-row-gap: "0"
+      ha-view-sections-column-gap: "0"
+
+
+
+      # Hide toolbar border and active tab indicator
+      app-header-border-bottom: "none"
+      paper-tabs-selection-bar-color: "transparent"
+
       # E-ink optimized colors (high contrast grayscale)
+      state-icon-color: "#000000"
+      state-icon-active-color: "#000000"
       primary-color: "#000000"
       primary-background-color: "#FFFFFF"
       secondary-background-color: "#FFFFFF"
