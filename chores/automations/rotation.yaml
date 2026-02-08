@@ -1,4 +1,5 @@
-# Weekly chore rotation - Monday at 00:01
+# Weekly random chore distribution - Monday at 00:01
+# Randomly assigns 9 chores so each person gets exactly 3
 # Uses input_datetime.chore_last_rotation to prevent duplicate rotations
 
 automation:
@@ -21,82 +22,36 @@ automation:
             {{ (now().date() - strptime(last, '%Y-%m-%d').date()).days >= 6 }}
           {% endif %}
     action:
-      # Rotate laundry: Eero -> Kätlyn -> Lola -> Eero
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.chore_laundry
-        data:
-          option: >
-            {% set current = states('input_select.chore_laundry') %}
-            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
-            {% set idx = rotation.index(current) if current in rotation else -1 %}
-            {{ rotation[(idx + 1) % 3] }}
+      # Shuffle chores and people for random balanced assignment
+      - variables:
+          shuffled_chores: >
+            {% set ns = namespace(remaining=['chore_laundry', 'chore_trash', 'chore_bathroom_1', 'chore_bathroom_basement', 'chore_plants', 'chore_cat', 'chore_dust_1', 'chore_dust_basement', 'chore_kitchen']) %}
+            {% set ns.result = [] %}
+            {% for i in range(9) %}
+              {% set pick = ns.remaining | random %}
+              {% set ns.result = ns.result + [pick] %}
+              {% set ns.remaining = ns.remaining | reject('eq', pick) | list %}
+            {% endfor %}
+            {{ ns.result }}
+          shuffled_people: >
+            {% set ns = namespace(remaining=['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur']) %}
+            {% set ns.result = [] %}
+            {% for i in range(3) %}
+              {% set pick = ns.remaining | random %}
+              {% set ns.result = ns.result + [pick] %}
+              {% set ns.remaining = ns.remaining | reject('eq', pick) | list %}
+            {% endfor %}
+            {{ ns.result }}
 
-      # Rotate trash: Eero -> Kätlyn -> Lola -> Eero
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.chore_trash
-        data:
-          option: >
-            {% set current = states('input_select.chore_trash') %}
-            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
-            {% set idx = rotation.index(current) if current in rotation else -1 %}
-            {{ rotation[(idx + 1) % 3] }}
-
-      # Rotate bathroom: Eero -> Kätlyn -> Lola -> Eero
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.chore_bathroom
-        data:
-          option: >
-            {% set current = states('input_select.chore_bathroom') %}
-            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
-            {% set idx = rotation.index(current) if current in rotation else -1 %}
-            {{ rotation[(idx + 1) % 3] }}
-
-      # Rotate plants: Eero -> Kätlyn -> Lola -> Eero
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.chore_plants
-        data:
-          option: >
-            {% set current = states('input_select.chore_plants') %}
-            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
-            {% set idx = rotation.index(current) if current in rotation else -1 %}
-            {{ rotation[(idx + 1) % 3] }}
-
-      # Rotate cat: Eero -> Kätlyn -> Lola -> Eero
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.chore_cat
-        data:
-          option: >
-            {% set current = states('input_select.chore_cat') %}
-            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
-            {% set idx = rotation.index(current) if current in rotation else -1 %}
-            {{ rotation[(idx + 1) % 3] }}
-
-      # Rotate outdoor: Eero -> Kätlyn -> Eero (only 2 people)
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.chore_outdoor
-        data:
-          option: >
-            {% set current = states('input_select.chore_outdoor') %}
-            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus'] %}
-            {% set idx = rotation.index(current) if current in rotation else -1 %}
-            {{ rotation[(idx + 1) % 2] }}
-
-      # Rotate dust: Eero -> Kätlyn -> Lola -> Eero
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.chore_dust
-        data:
-          option: >
-            {% set current = states('input_select.chore_dust') %}
-            {% set rotation = ['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur'] %}
-            {% set idx = rotation.index(current) if current in rotation else -1 %}
-            {{ rotation[(idx + 1) % 3] }}
+      # Assign 3 chores per person: shuffled_chores[0-2] -> person[0], [3-5] -> person[1], [6-8] -> person[2]
+      - repeat:
+          count: 9
+          sequence:
+            - service: input_select.select_option
+              target:
+                entity_id: "input_select.{{ shuffled_chores[repeat.index - 1] }}"
+              data:
+                option: "{{ shuffled_people[(repeat.index - 1) // 3] }}"
 
       # Wait for state changes to propagate before Ada selection
       - delay:
@@ -108,15 +63,16 @@ automation:
           entity_id: input_select.ada_helper_eero
         data:
           option: >
-            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom',
-                             'chore_plants', 'chore_cat', 'chore_outdoor', 'chore_dust'] %}
-            {% set ns = namespace(eero_list=[]) %}
+            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom_1',
+                             'chore_bathroom_basement', 'chore_plants', 'chore_cat',
+                             'chore_dust_1', 'chore_dust_basement', 'chore_kitchen'] %}
+            {% set ns = namespace(list=[]) %}
             {% for chore in chores %}
               {% if states('input_select.' ~ chore) == 'person.eero_otsus' %}
-                {% set ns.eero_list = ns.eero_list + [chore] %}
+                {% set ns.list = ns.list + [chore] %}
               {% endif %}
             {% endfor %}
-            {{ ns.eero_list | random }}
+            {{ ns.list | random }}
 
       # Pick random chore for Ada from Kätlyn's assignments
       - service: input_select.select_option
@@ -124,15 +80,33 @@ automation:
           entity_id: input_select.ada_helper_katlyn
         data:
           option: >
-            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom',
-                             'chore_plants', 'chore_cat', 'chore_outdoor', 'chore_dust'] %}
-            {% set ns = namespace(katlyn_list=[]) %}
+            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom_1',
+                             'chore_bathroom_basement', 'chore_plants', 'chore_cat',
+                             'chore_dust_1', 'chore_dust_basement', 'chore_kitchen'] %}
+            {% set ns = namespace(list=[]) %}
             {% for chore in chores %}
               {% if states('input_select.' ~ chore) == 'person.katlyn_otsus' %}
-                {% set ns.katlyn_list = ns.katlyn_list + [chore] %}
+                {% set ns.list = ns.list + [chore] %}
               {% endif %}
             {% endfor %}
-            {{ ns.katlyn_list | random }}
+            {{ ns.list | random }}
+
+      # Pick random chore for Ada from Lola's assignments
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.ada_helper_lola
+        data:
+          option: >
+            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom_1',
+                             'chore_bathroom_basement', 'chore_plants', 'chore_cat',
+                             'chore_dust_1', 'chore_dust_basement', 'chore_kitchen'] %}
+            {% set ns = namespace(list=[]) %}
+            {% for chore in chores %}
+              {% if states('input_select.' ~ chore) == 'person.lola_laur' %}
+                {% set ns.list = ns.list + [chore] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.list | random }}
 
       # Record rotation date
       - service: input_datetime.set_datetime

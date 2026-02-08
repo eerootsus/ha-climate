@@ -15,8 +15,16 @@ input_select:
       - person.katlyn_otsus
       - person.lola_laur
 
-  chore_bathroom:
-    name: Tualetitoimkond
+  chore_bathroom_1:
+    name: Tualetitoimkond 1. korrus
+    icon: mdi:toilet
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+      - person.lola_laur
+
+  chore_bathroom_basement:
+    name: Tualetitoimkond sokkel
     icon: mdi:toilet
     options:
       - person.eero_otsus
@@ -39,16 +47,25 @@ input_select:
       - person.katlyn_otsus
       - person.lola_laur
 
-  chore_outdoor:
-    name: Õuetoimkond
-    icon: mdi:shovel
+  chore_dust_1:
+    name: Tolmutoimkond 1. korrus
+    icon: mdi:robot-vacuum
     options:
       - person.eero_otsus
       - person.katlyn_otsus
+      - person.lola_laur
 
-  chore_dust:
-    name: Tolmutoimkond
+  chore_dust_basement:
+    name: Tolmutoimkond sokkel
     icon: mdi:robot-vacuum
+    options:
+      - person.eero_otsus
+      - person.katlyn_otsus
+      - person.lola_laur
+
+  chore_kitchen:
+    name: Köögitoimkond
+    icon: mdi:silverware-fork-knife
     options:
       - person.eero_otsus
       - person.katlyn_otsus
@@ -60,11 +77,13 @@ input_select:
     options:
       - chore_laundry
       - chore_trash
-      - chore_bathroom
+      - chore_bathroom_1
+      - chore_bathroom_basement
       - chore_plants
       - chore_cat
-      - chore_outdoor
-      - chore_dust
+      - chore_dust_1
+      - chore_dust_basement
+      - chore_kitchen
 
   ada_helper_katlyn:
     name: Ada abistab Kätlyni
@@ -72,15 +91,30 @@ input_select:
     options:
       - chore_laundry
       - chore_trash
-      - chore_bathroom
+      - chore_bathroom_1
+      - chore_bathroom_basement
       - chore_plants
       - chore_cat
-      - chore_outdoor
-      - chore_dust
+      - chore_dust_1
+      - chore_dust_basement
+      - chore_kitchen
+
+  ada_helper_lola:
+    name: Ada abistab Lolat
+    icon: mdi:account-plus
+    options:
+      - chore_laundry
+      - chore_trash
+      - chore_bathroom_1
+      - chore_bathroom_basement
+      - chore_plants
+      - chore_cat
+      - chore_dust_1
+      - chore_dust_basement
+      - chore_kitchen
 
 input_datetime:
   chore_last_rotation:
     name: Last Chore Rotation
     has_date: true
     has_time: false
-

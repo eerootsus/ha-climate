@@ -1,16 +1,16 @@
-# Weekly summary notifications - Monday at 08:00
-# Sends each person their assigned chores for the week
+# Saturday cleaning day reminder - Saturday at 10:00
+# Reminds everyone that today is cleaning day with their assigned chores
 
 automation:
-  - id: chore_weekly_summary
-    alias: "Chores: Weekly Summary"
+  - id: chore_cleaning_day
+    alias: "Chores: Cleaning Day Reminder"
     trigger:
       - platform: time
-        at: "08:00:00"
+        at: "10:00:00"
     condition:
       - condition: time
         weekday:
-          - mon
+          - sat
     action:
       - variables:
           chore_names:
@@ -27,7 +27,7 @@ automation:
       # Notify Eero
       - service: notify.mobile_app_eeros_iphone
         data:
-          title: "Nädala toimkonnad"
+          title: "Koristuspäev!"
           message: >
             {% set ns = namespace(list=[]) %}
             {% for chore_id, chore_name in chore_names.items() %}
@@ -35,16 +35,12 @@ automation:
                 {% set ns.list = ns.list + [chore_name] %}
               {% endif %}
             {% endfor %}
-            {% if ns.list | length > 0 %}
-              Sinu toimkonnad sel nädalal: {{ ns.list | join(', ') }}
-            {% else %}
-              Sul pole sel nädalal toimkondi!
-            {% endif %}
+            Täna on koristuspäev! Sinu toimkonnad: {{ ns.list | join(', ') }}
 
       # Notify Kätlyn
       - service: notify.mobile_app_katu_iphone
         data:
-          title: "Nädala toimkonnad"
+          title: "Koristuspäev!"
           message: >
             {% set ns = namespace(list=[]) %}
             {% for chore_id, chore_name in chore_names.items() %}
@@ -52,16 +48,12 @@ automation:
                 {% set ns.list = ns.list + [chore_name] %}
               {% endif %}
             {% endfor %}
-            {% if ns.list | length > 0 %}
-              Sinu toimkonnad sel nädalal: {{ ns.list | join(', ') }}
-            {% else %}
-              Sul pole sel nädalal toimkondi!
-            {% endif %}
+            Täna on koristuspäev! Sinu toimkonnad: {{ ns.list | join(', ') }}
 
       # Notify Lola
       - service: notify.mobile_app_lolas_iphone
         data:
-          title: "Nädala toimkonnad"
+          title: "Koristuspäev!"
           message: >
             {% set ns = namespace(list=[]) %}
             {% for chore_id, chore_name in chore_names.items() %}
@@ -69,16 +61,12 @@ automation:
                 {% set ns.list = ns.list + [chore_name] %}
               {% endif %}
             {% endfor %}
-            {% if ns.list | length > 0 %}
-              Sinu toimkonnad sel nädalal: {{ ns.list | join(', ') }}
-            {% else %}
-              Sul pole sel nädalal toimkondi!
-            {% endif %}
+            Täna on koristuspäev! Sinu toimkonnad: {{ ns.list | join(', ') }}
 
-      # Notify Ada (helper chores)
+      # Notify Ada
       - service: notify.mobile_app_adas_iphone
         data:
-          title: "Nädala toimkonnad"
+          title: "Koristuspäev!"
           message: >
             {% set eero_chore = states('input_select.ada_helper_eero') %}
             {% set katlyn_chore = states('input_select.ada_helper_katlyn') %}
@@ -93,8 +81,4 @@ automation:
             {% if lola_chore in chore_names %}
               {% set ns.list = ns.list + [chore_names[lola_chore] ~ ' (Lolaga)'] %}
             {% endif %}
-            {% if ns.list | length > 0 %}
-              Sina aitad sel nädalal: {{ ns.list | join(', ') }}
-            {% else %}
-              Sul pole sel nädalal toimkondi!
-            {% endif %}
+            Täna on koristuspäev! Sinu toimkonnad: {{ ns.list | join(', ') }}

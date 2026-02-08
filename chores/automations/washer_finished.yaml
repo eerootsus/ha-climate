@@ -51,6 +51,9 @@ automation:
                   - condition: state
                     entity_id: input_select.ada_helper_katlyn
                     state: "chore_laundry"
+                  - condition: state
+                    entity_id: input_select.ada_helper_lola
+                    state: "chore_laundry"
             sequence:
               - service: notify.mobile_app_adas_iphone
                 data:

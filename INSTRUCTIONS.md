@@ -11,16 +11,18 @@ Native Home Assistant automations for household chore rotation and notifications
 | Kätlyn | person.katlyn_otsus | notify.mobile_app_katu_iphone |
 | Lola | person.lola_laur | notify.mobile_app_lolas_iphone |
 
-### Rotating Chores (Weekly)
-| Chore | Entity | Rotation |
-|-------|--------|----------|
-| Pesutoimkond | input_select.chore_laundry | Eero -> Kätlyn -> Lola |
-| Prügitoimkond | input_select.chore_trash | Eero -> Kätlyn -> Lola |
-| Tualetitoimkond | input_select.chore_bathroom | Eero -> Kätlyn -> Lola |
-| Floratoimkond | input_select.chore_plants | Eero -> Kätlyn -> Lola |
-| Kassitoimkond | input_select.chore_cat | Eero -> Kätlyn -> Lola |
-| Õuetoimkond | input_select.chore_outdoor | Eero -> Kätlyn |
-| Tolmutoimkond | input_select.chore_dust | Eero -> Kätlyn -> Lola |
+### Chores (Random Weekly Distribution, 3 per person)
+| Chore | Entity |
+|-------|--------|
+| Pesutoimkond | input_select.chore_laundry |
+| Prügitoimkond | input_select.chore_trash |
+| Tualetitoimkond 1. korrus | input_select.chore_bathroom_1 |
+| Tualetitoimkond sokkel | input_select.chore_bathroom_basement |
+| Floratoimkond | input_select.chore_plants |
+| Kassitoimkond | input_select.chore_cat |
+| Tolmutoimkond 1. korrus | input_select.chore_dust_1 |
+| Tolmutoimkond sokkel | input_select.chore_dust_basement |
+| Köögitoimkond | input_select.chore_kitchen |
 
 ### Dinner Schedule (Fixed by Weekday)
 | Day | Cook |
@@ -50,6 +52,7 @@ config/
 │       ├── rotation.yaml                 <- weekly rotation
 │       ├── weekly_summary.yaml           <- Monday summary notifications
 │       ├── dinner_reminder.yaml          <- daily dinner reminders
+│       ├── cleaning_day.yaml             <- Saturday cleaning day reminder
 │       └── washer_finished.yaml          <- washer notification
 └── configuration.yaml
 ```
@@ -65,6 +68,7 @@ homeassistant:
     chores_rotation: !include chores/automations/rotation.yaml
     chores_weekly_summary: !include chores/automations/weekly_summary.yaml
     chores_dinner_reminder: !include chores/automations/dinner_reminder.yaml
+    chores_cleaning_day: !include chores/automations/cleaning_day.yaml
     chores_washer: !include chores/automations/washer_finished.yaml
 ```
 
@@ -76,15 +80,16 @@ Settings -> System -> Restart
 
 ## How It Works
 
-### Chore Rotation
-- Every Monday at 00:01, automations rotate all chores to the next person
-- Uses `input_datetime.chore_last_rotation` to prevent duplicate rotations (idempotent)
-- Each chore's rotation is independent
+### Chore Distribution
+- Every Monday at 00:01, all 9 chores are randomly distributed so each person gets exactly 3
+- Uses `input_datetime.chore_last_rotation` to prevent duplicate distributions (idempotent)
+- Ada is randomly assigned to help each person with 1 of their 3 chores (3 helper chores total)
 - State is stored in `input_select` entities (persists across restarts)
 
 ### Notifications
 - **Daily dinner reminder** at 10:00 - notifies today's cook
 - **Weekly chore summary** at 08:00 Monday - each person gets their weekly chores
+- **Cleaning day reminder** at 10:00 Saturday - reminds everyone it's cleaning day with their chores
 - **Washer finished** - notifies the current laundry person when washer completes
 
 ### Sensors (Always Available)
@@ -92,11 +97,13 @@ Template sensors derive from input_selects and are always available, even if aut
 
 - `sensor.chore_laundry` - Current laundry assignee's first name
 - `sensor.chore_trash` - Current trash assignee's first name
-- `sensor.chore_bathroom` - Current bathroom assignee's first name
+- `sensor.chore_bathroom_1` - Current 1st floor bathroom assignee's first name
+- `sensor.chore_bathroom_basement` - Current basement bathroom assignee's first name
 - `sensor.chore_plants` - Current plants assignee's first name
 - `sensor.chore_cat` - Current cat assignee's first name
-- `sensor.chore_outdoor` - Current outdoor assignee's first name
-- `sensor.chore_dust` - Current dust assignee's first name
+- `sensor.chore_dust_1` - Current 1st floor dust assignee's first name
+- `sensor.chore_dust_basement` - Current basement dust assignee's first name
+- `sensor.chore_kitchen` - Current kitchen assignee's first name
 - `sensor.dinner_today` - Today's cook
 - `sensor.dinner_tomorrow` - Tomorrow's cook
 
@@ -139,8 +146,8 @@ Settings -> Automations -> [Automation Name] -> Traces
 3. Update `package.yaml` - add/remove options in input_selects
 4. Update automations - adjust rotation lists and notification targets
 
-### Changing Rotation Order
-Edit the `rotation` list in `automations/rotation.yaml`.
+### Changing Distribution
+Edit the chore and people lists in `automations/rotation.yaml`.
 
 ### Changing Dinner Schedule
 Edit `sensors/dinner.yaml` - modify the `schedule` dict.
