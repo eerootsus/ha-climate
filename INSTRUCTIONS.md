@@ -145,3 +145,28 @@ Edit the `rotation` list in `automations/rotation.yaml`.
 ### Changing Dinner Schedule
 Edit `sensors/dinner.yaml` - modify the `schedule` dict.
 Edit `automations/dinner_reminder.yaml` - adjust the weekday conditions.
+
+---
+
+## E-Ink Theme
+
+Custom theme optimized for e-ink displays with serif fonts and larger text.
+
+### Installation
+
+1. Copy `themes/eink-serif.yaml` to your HA config:
+   ```
+   config/
+   └── themes/
+       └── eink-serif.yaml
+   ```
+
+2. Add to `configuration.yaml`:
+   ```yaml
+   frontend:
+     themes: !include_dir_merge_named themes
+   ```
+
+3. Reload themes: Developer Tools -> YAML -> Themes
+
+4. Select theme: Profile -> Theme -> eink-serif
