@@ -71,7 +71,7 @@ template:
 
       - name: Chore Bathroom Basement
         unique_id: chore_bathroom_basement_sensor
-        icon: mdi:bathtub
+        icon: mdi:shower
         state: >
           {% set person = states('input_select.chore_bathroom_basement') %}
           {% set names = {

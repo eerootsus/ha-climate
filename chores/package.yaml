@@ -25,7 +25,7 @@ input_select:
 
   chore_bathroom_basement:
     name: Tualetitoimkond sokkel
-    icon: mdi:bathtub
+    icon: mdi:shower
     options:
       - person.eero_otsus
       - person.katlyn_otsus
