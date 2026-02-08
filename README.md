@@ -187,6 +187,13 @@ card_mod:
     .temp-attribute .temp {
       margin-right: 36px !important;
       line-height: 32px !important;
+      font-weight: 700;
+    }
+    .temp-attribute .temp span {
+      font-weight: 400;
+    }
+    .name-state .name {
+      display: none;
     }
 ```
 
