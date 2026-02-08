@@ -24,10 +24,20 @@ eink-serif:
       # Card header
       ha-card-header-font-size: "24px"
 
+      # Remove card borders, padding, and margins
+      ha-card-border-width: "0px"
+      ha-card-border-radius: "0px"
+      ha-card-box-shadow: "none"
+
+      # Remove page/view padding and card margins
+      ha-view-padding: "0px"
+      ha-section-grid-margin: "0px"
+      ha-card-padding: "0px"
+
       # E-ink optimized colors (high contrast grayscale)
       primary-color: "#000000"
       primary-background-color: "#FFFFFF"
-      secondary-background-color: "#F5F5F5"
+      secondary-background-color: "#FFFFFF"
       card-background-color: "#FFFFFF"
       primary-text-color: "#000000"
       secondary-text-color: "#333333"

@@ -6,16 +6,42 @@ entities:
   - entity: sensor.chore_trash
     name: Prügitoimkond
   - entity: sensor.chore_bathroom_1
-    name: Tualetitoimkond 1. korrus
+    name: Tualett 1. korrus
   - entity: sensor.chore_bathroom_basement
-    name: Tualetitoimkond sokkel
+    name: Tualett sokkel
   - entity: sensor.chore_plants
     name: Floratoimkond
   - entity: sensor.chore_cat
     name: Kassitoimkond
   - entity: sensor.chore_dust_1
-    name: Tolmutoimkond 1. korrus
+    name: Tolm 1. korrus
   - entity: sensor.chore_dust_basement
-    name: Tolmutoimkond sokkel
+    name: Tolm sokkel
   - entity: sensor.chore_kitchen
     name: Köögitoimkond
+card_mod:
+  style: |
+    .card-header {
+      padding: 4px 8px !important;
+      font-size: 20px !important;
+    }
+    #states > * {
+      margin: 0 !important;
+    }
+    #states .div-entities > :first-child {
+      margin-top: 0 !important;
+    }
+  style_entities:
+    "*":
+      hui-generic-entity-row$: |
+        .info, .text-content {
+          padding: 2px 0 !important;
+        }
+      .: |
+        :host {
+          --paper-item-min-height: 28px;
+        }
+        div.entity-row {
+          padding: 0 8px !important;
+          min-height: 28px !important;
+        }
