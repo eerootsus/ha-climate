@@ -12,73 +12,26 @@ automation:
         weekday:
           - sat
     action:
-      - variables:
-          chore_names:
-            chore_laundry: Pesutoimkond
-            chore_trash: Prügitoimkond
-            chore_bathroom_1: Tualetitoimkond 1. korrus
-            chore_bathroom_basement: Tualetitoimkond sokkel
-            chore_plants: Floratoimkond
-            chore_cat: Kassitoimkond
-            chore_dust_1: Tolmutoimkond 1. korrus
-            chore_dust_basement: Tolmutoimkond sokkel
-            chore_kitchen: Köögitoimkond
-
       # Notify Eero
       - service: notify.mobile_app_eeros_iphone
         data:
           title: "Koristuspäev!"
-          message: >
-            {% set ns = namespace(list=[]) %}
-            {% for chore_id, chore_name in chore_names.items() %}
-              {% if states('input_select.' ~ chore_id) == 'person.eero_otsus' %}
-                {% set ns.list = ns.list + [chore_name] %}
-              {% endif %}
-            {% endfor %}
-            Täna on koristuspäev! Sinu toimkonnad: {{ ns.list | join(', ') }}
+          message: "Täna on koristuspäev!"
 
       # Notify Kätlyn
       - service: notify.mobile_app_katu_iphone
         data:
           title: "Koristuspäev!"
-          message: >
-            {% set ns = namespace(list=[]) %}
-            {% for chore_id, chore_name in chore_names.items() %}
-              {% if states('input_select.' ~ chore_id) == 'person.katlyn_otsus' %}
-                {% set ns.list = ns.list + [chore_name] %}
-              {% endif %}
-            {% endfor %}
-            Täna on koristuspäev! Sinu toimkonnad: {{ ns.list | join(', ') }}
+          message: "Täna on koristuspäev!"
 
       # Notify Lola
       - service: notify.mobile_app_lolas_iphone
         data:
           title: "Koristuspäev!"
-          message: >
-            {% set ns = namespace(list=[]) %}
-            {% for chore_id, chore_name in chore_names.items() %}
-              {% if states('input_select.' ~ chore_id) == 'person.lola_laur' %}
-                {% set ns.list = ns.list + [chore_name] %}
-              {% endif %}
-            {% endfor %}
-            Täna on koristuspäev! Sinu toimkonnad: {{ ns.list | join(', ') }}
+          message: "Täna on koristuspäev!"
 
       # Notify Ada
       - service: notify.mobile_app_adas_iphone
         data:
           title: "Koristuspäev!"
-          message: >
-            {% set eero_chore = states('input_select.ada_helper_eero') %}
-            {% set katlyn_chore = states('input_select.ada_helper_katlyn') %}
-            {% set lola_chore = states('input_select.ada_helper_lola') %}
-            {% set ns = namespace(list=[]) %}
-            {% if eero_chore in chore_names %}
-              {% set ns.list = ns.list + [chore_names[eero_chore] ~ ' (Eeroga)'] %}
-            {% endif %}
-            {% if katlyn_chore in chore_names %}
-              {% set ns.list = ns.list + [chore_names[katlyn_chore] ~ ' (Kätlyniga)'] %}
-            {% endif %}
-            {% if lola_chore in chore_names %}
-              {% set ns.list = ns.list + [chore_names[lola_chore] ~ ' (Lolaga)'] %}
-            {% endif %}
-            Täna on koristuspäev! Sinu toimkonnad: {{ ns.list | join(', ') }}
+          message: "Täna on koristuspäev!"
