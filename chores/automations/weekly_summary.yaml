@@ -25,7 +25,7 @@ automation:
             chore_kitchen: Köögitoimkond
 
       # Notify Eero
-      - service: notify.mobile_app_eeros_iphone
+      - service: notify.mobile_app_eeros_iphone_17
         data:
           title: "Nädala toimkonnad"
           message: >

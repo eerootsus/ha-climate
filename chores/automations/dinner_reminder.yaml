@@ -37,7 +37,7 @@ automation:
                 weekday:
                   - wed
             sequence:
-              - service: notify.mobile_app_eeros_iphone
+              - service: notify.mobile_app_eeros_iphone_17
                 data:
                   title: "Köögitoimkond"
                   message: "Eero, sinu kord on täna õhtusöök valmistada!"
@@ -70,7 +70,7 @@ automation:
                 weekday:
                   - sat
             sequence:
-              - service: notify.mobile_app_eeros_iphone
+              - service: notify.mobile_app_eeros_iphone_17
                 data:
                   title: "Köögitoimkond"
                   message: "Eero, sinu kord on täna õhtusöök valmistada!"

@@ -13,7 +13,7 @@ automation:
           - sat
     action:
       # Notify Eero
-      - service: notify.mobile_app_eeros_iphone
+      - service: notify.mobile_app_eeros_iphone_17
         data:
           title: "Koristuspäev!"
           message: "Täna on koristuspäev!"
