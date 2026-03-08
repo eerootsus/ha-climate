@@ -7,16 +7,3 @@ forecast_slots: 6
 secondary_info_attribute: uv_index
 layout_options:
   grid_rows: 4
-card_mod:
-  style: |
-    .temp-attribute .temp {
-      margin-right: 36px !important;
-      line-height: 32px !important;
-      font-weight: 700;
-    }
-    .temp-attribute .temp span {
-      font-weight: 400;
-    }
-    .name-state .name {
-      display: none;
-    }

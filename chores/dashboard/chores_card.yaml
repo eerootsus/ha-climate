@@ -19,11 +19,3 @@ entities:
     name: Tolm sokkel
   - entity: sensor.chore_kitchen
     name: Köögitoimkond
-card_mod:
-  style: |
-    .card-header {
-      font-weight: 700;
-    }
-    #states {
-      font-size: 18px;
-    }

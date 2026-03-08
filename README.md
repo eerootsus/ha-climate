@@ -178,33 +178,3 @@ Custom theme optimized for e-ink displays with serif fonts and larger text.
 
 4. Select theme: Profile -> Theme -> eink-serif
 
-### card-mod Tweaks (requires [card-mod](https://github.com/thomasloven/lovelace-card-mod))
-
-Weather card:
-```yaml
-card_mod:
-  style: |
-    .temp-attribute .temp {
-      margin-right: 36px !important;
-      line-height: 32px !important;
-      font-weight: 700;
-    }
-    .temp-attribute .temp span {
-      font-weight: 400;
-    }
-    .name-state .name {
-      display: none;
-    }
-```
-
-Chores entities card:
-```yaml
-card_mod:
-  style: |
-    .card-header {
-      font-weight: 700;
-    }
-    #states {
-      font-size: 18px;
-    }
-```

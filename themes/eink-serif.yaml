@@ -31,13 +31,12 @@ eink-serif:
       ha-card-box-shadow: "none"
       ha-card-padding: "0px"
 
-      # Remove page/view padding and grid margins
-      ha-view-padding: "0px"
+      # Grid margins
       ha-section-grid-margin: "0px"
 
       # Compact spacing
       entities-card-row-gap: "0"
-      ha-view-sections-column-gap: "0"
+      ha-view-sections-column-gap: "16px"
 
 
 
@@ -56,3 +55,47 @@ eink-serif:
       secondary-text-color: "#333333"
       disabled-text-color: "#666666"
       divider-color: "#CCCCCC"
+
+  # Card-mod theme overrides (must be at theme root, not under modes)
+  card-mod-theme: eink-serif
+  card-mod-card: |
+    /* Weather card */
+    .temp-attribute .temp {
+      margin-right: 36px !important;
+      line-height: 32px !important;
+      font-weight: 700;
+    }
+    .temp-attribute .temp span {
+      font-weight: 400;
+    }
+    .name-state .name {
+      display: none;
+    }
+    .name-state .state {
+      font-size: 18px;
+    }
+    .temp-attribute .attribute {
+      margin-top: 8px;
+    }
+    .forecast .forecast-image-icon {
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    /* Entities card (chores) */
+    .card-header {
+      font-weight: 700;
+    }
+    #states {
+      font-size: 18px;
+    }
+    /* Entity card (dinner) */
+    .info .value {
+      font-size: 48px;
+      font-weight: 500;
+    }
+  card-mod-row-yaml: |
+    hui-generic-entity-row:
+      $: |
+        .info.text-content {
+          padding-left: 0 !important;
+        }

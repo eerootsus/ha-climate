@@ -10,9 +10,3 @@ visibility:
     after: "00:00:00"
     before: "18:00:00"
 name: Täna valmistab õhtusöögi
-card_mod:
-  style: |
-    .info .value {
-      font-size: 48px;
-      font-weight: 500;
-    }
