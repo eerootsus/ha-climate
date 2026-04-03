@@ -35,6 +35,9 @@ Native Home Assistant automations for household chore rotation and notifications
 | Saturday | Eero |
 | Sunday | Kätlyn |
 
+### Ada Care (Alternating Daily)
+Alternates between Eero and Kätlyn, starting with Eero on 2026-04-03.
+
 ---
 
 ## Home Assistant Setup
@@ -47,11 +50,13 @@ config/
 │   ├── package.yaml                      <- input_selects and input_datetime
 │   ├── sensors/
 │   │   ├── chores.yaml                   <- chore sensors
-│   │   └── dinner.yaml                   <- dinner sensors
+│   │   ├── dinner.yaml                   <- dinner sensors
+│   │   └── ada_care.yaml                 <- Ada care sensor
 │   └── automations/
 │       ├── rotation.yaml                 <- weekly rotation
 │       ├── weekly_summary.yaml           <- Monday summary notifications
 │       ├── dinner_reminder.yaml          <- daily dinner reminders
+│       ├── ada_care.yaml                 <- daily Ada care reminders
 │       ├── cleaning_day.yaml             <- Saturday cleaning day reminder
 │       └── washer_finished.yaml          <- washer notification
 └── configuration.yaml
@@ -69,6 +74,8 @@ homeassistant:
     chores_weekly_summary: !include chores/automations/weekly_summary.yaml
     chores_dinner_reminder: !include chores/automations/dinner_reminder.yaml
     chores_cleaning_day: !include chores/automations/cleaning_day.yaml
+    chores_ada_care: !include chores/sensors/ada_care.yaml
+    chores_ada_care_reminder: !include chores/automations/ada_care.yaml
     chores_washer: !include chores/automations/washer_finished.yaml
 ```
 
@@ -88,6 +95,7 @@ Settings -> System -> Restart
 
 ### Notifications
 - **Daily dinner reminder** at 10:00 - notifies today's cook
+- **Daily Ada care reminder** at 07:00 - notifies today's Ada caregiver (Eero/Kätlyn alternating)
 - **Weekly chore summary** at 08:00 Monday - each person gets their weekly chores
 - **Cleaning day reminder** at 10:00 Saturday - reminds everyone it's cleaning day with their chores
 - **Washer finished** - notifies the current laundry person when washer completes
@@ -106,6 +114,7 @@ Template sensors derive from input_selects and are always available, even if aut
 - `sensor.chore_kitchen` - Current kitchen assignee's first name
 - `sensor.dinner_today` - Today's cook
 - `sensor.dinner_tomorrow` - Tomorrow's cook
+- `sensor.ada_care_today` - Today's Ada caregiver
 
 ---
 

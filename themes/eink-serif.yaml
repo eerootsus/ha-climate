@@ -37,6 +37,8 @@ eink-serif:
       # Compact spacing
       entities-card-row-gap: "0"
       ha-view-sections-column-gap: "16px"
+      ha-section-grid-row-gap: "0px"
+      ha-section-grid-gap: "0px"
 
 
 
@@ -88,10 +90,14 @@ eink-serif:
     #states {
       font-size: 18px;
     }
-    /* Entity card (dinner) */
+    /* Entity card (dinner, Ada care) */
+    .header .name {
+      font-size: 16px;
+    }
     .info .value {
-      font-size: 48px;
+      font-size: 36px;
       font-weight: 500;
+      margin-top: -4px;
     }
   card-mod-row-yaml: |
     hui-generic-entity-row:
