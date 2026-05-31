@@ -22,57 +22,28 @@ automation:
             {{ (now().date() - strptime(last, '%Y-%m-%d').date()).days >= 6 }}
           {% endif %}
     action:
-      # Shuffle chores and people for random balanced assignment
-      - variables:
-          shuffled_chores: >
-            {% set ns = namespace(remaining=['chore_laundry', 'chore_trash', 'chore_bathroom_1', 'chore_bathroom_basement', 'chore_plants', 'chore_cat', 'chore_dust_1', 'chore_dust_basement', 'chore_kitchen']) %}
-            {% set ns.result = [] %}
-            {% for i in range(9) %}
-              {% set pick = ns.remaining | random %}
-              {% set ns.result = ns.result + [pick] %}
-              {% set ns.remaining = ns.remaining | reject('eq', pick) | list %}
-            {% endfor %}
-            {{ ns.result }}
-          shuffled_people: >
-            {% set ns = namespace(remaining=['person.eero_otsus', 'person.katlyn_otsus', 'person.lola_laur']) %}
-            {% set ns.result = [] %}
-            {% for i in range(3) %}
-              {% set pick = ns.remaining | random %}
-              {% set ns.result = ns.result + [pick] %}
-              {% set ns.remaining = ns.remaining | reject('eq', pick) | list %}
-            {% endfor %}
-            {{ ns.result }}
-
-      # Assign 3 chores per person: shuffled_chores[0-2] -> person[0], [3-5] -> person[1], [6-8] -> person[2]
+      # Assign each chore to a random person (Kätlyn or Lola), no balancing
       - repeat:
-          count: 9
+          for_each:
+            - chore_laundry
+            - chore_trash
+            - chore_bathroom_1
+            - chore_bathroom_basement
+            - chore_plants
+            - chore_cat
+            - chore_dust_1
+            - chore_dust_basement
+            - chore_kitchen
           sequence:
             - service: input_select.select_option
               target:
-                entity_id: "input_select.{{ shuffled_chores[repeat.index - 1] }}"
+                entity_id: "input_select.{{ repeat.item }}"
               data:
-                option: "{{ shuffled_people[(repeat.index - 1) // 3] }}"
+                option: "{{ ['person.katlyn_otsus', 'person.lola_laur'] | random }}"
 
       # Wait for state changes to propagate before Ada selection
       - delay:
           seconds: 1
-
-      # Pick random chore for Ada from Eero's assignments
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.ada_helper_eero
-        data:
-          option: >
-            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom_1',
-                             'chore_bathroom_basement', 'chore_plants', 'chore_cat',
-                             'chore_dust_1', 'chore_dust_basement', 'chore_kitchen'] %}
-            {% set ns = namespace(list=[]) %}
-            {% for chore in chores %}
-              {% if states('input_select.' ~ chore) == 'person.eero_otsus' %}
-                {% set ns.list = ns.list + [chore] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list | random }}
 
       # Pick random chore for Ada from Kätlyn's assignments
       - service: input_select.select_option

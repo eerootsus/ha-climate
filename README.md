@@ -7,11 +7,14 @@ Native Home Assistant automations for household chore rotation and notifications
 ### People
 | Name | Person Entity | Notification Service |
 |------|---------------|---------------------|
-| Eero | person.eero_otsus | notify.mobile_app_eeros_iphone_17 |
 | Kätlyn | person.katlyn_otsus | notify.mobile_app_katu_iphone |
 | Lola | person.lola_laur | notify.mobile_app_lolas_iphone |
 
-### Chores (Random Weekly Distribution, 3 per person)
+### Chores (Random Weekly Distribution)
+All 9 chores are randomly distributed each Monday between Kätlyn and Lola (no
+fixed per-person count). Ada is randomly assigned to help each of them with one
+of their chores.
+
 | Chore | Entity |
 |-------|--------|
 | Pesutoimkond | input_select.chore_laundry |
@@ -24,20 +27,6 @@ Native Home Assistant automations for household chore rotation and notifications
 | Tolmutoimkond sokkel | input_select.chore_dust_basement |
 | Köögitoimkond | input_select.chore_kitchen |
 
-### Dinner Schedule (Fixed by Weekday)
-| Day | Cook |
-|-----|------|
-| Monday | Kätlyn |
-| Tuesday | Lola |
-| Wednesday | Eero |
-| Thursday | Lola |
-| Friday | Kätlyn |
-| Saturday | Eero |
-| Sunday | Kätlyn |
-
-### Ada Care (Alternating Daily)
-Alternates between Eero and Kätlyn, starting with Eero on 2026-04-03.
-
 ---
 
 ## Home Assistant Setup
@@ -49,15 +38,10 @@ config/
 ├── chores/
 │   ├── package.yaml                      <- input_selects and input_datetime
 │   ├── sensors/
-│   │   ├── chores.yaml                   <- chore sensors
-│   │   ├── dinner.yaml                   <- dinner sensors
-│   │   └── ada_care.yaml                 <- Ada care sensor
+│   │   └── chores.yaml                   <- chore sensors
 │   └── automations/
 │       ├── rotation.yaml                 <- weekly rotation
 │       ├── weekly_summary.yaml           <- Monday summary notifications
-│       ├── dinner_reminder.yaml          <- daily dinner reminders
-│       ├── ada_care.yaml                 <- daily Ada care reminders
-│       ├── cleaning_day.yaml             <- Saturday cleaning day reminder
 │       └── washer_finished.yaml          <- washer notification
 └── configuration.yaml
 ```
@@ -69,13 +53,8 @@ homeassistant:
   packages:
     chores: !include chores/package.yaml
     chores_sensors: !include chores/sensors/chores.yaml
-    chores_dinner: !include chores/sensors/dinner.yaml
     chores_rotation: !include chores/automations/rotation.yaml
     chores_weekly_summary: !include chores/automations/weekly_summary.yaml
-    chores_dinner_reminder: !include chores/automations/dinner_reminder.yaml
-    chores_cleaning_day: !include chores/automations/cleaning_day.yaml
-    chores_ada_care: !include chores/sensors/ada_care.yaml
-    chores_ada_care_reminder: !include chores/automations/ada_care.yaml
     chores_washer: !include chores/automations/washer_finished.yaml
 ```
 
@@ -88,16 +67,13 @@ Settings -> System -> Restart
 ## How It Works
 
 ### Chore Distribution
-- Every Monday at 00:01, all 9 chores are randomly distributed so each person gets exactly 3
+- Every Monday at 00:01, all 9 chores are randomly assigned between Kätlyn and Lola (no fixed per-person count)
 - Uses `input_datetime.chore_last_rotation` to prevent duplicate distributions (idempotent)
-- Ada is randomly assigned to help each person with 1 of their 3 chores (3 helper chores total)
+- Ada is randomly assigned to help each of them with 1 of their chores (2 helper chores total)
 - State is stored in `input_select` entities (persists across restarts)
 
 ### Notifications
-- **Daily dinner reminder** at 10:00 - notifies today's cook
-- **Daily Ada care reminder** at 07:00 - notifies today's Ada caregiver (Eero/Kätlyn alternating)
 - **Weekly chore summary** at 08:00 Monday - each person gets their weekly chores
-- **Cleaning day reminder** at 10:00 Saturday - reminds everyone it's cleaning day with their chores
 - **Washer finished** - notifies the current laundry person when washer completes
 
 ### Sensors (Always Available)
@@ -112,9 +88,6 @@ Template sensors derive from input_selects and are always available, even if aut
 - `sensor.chore_dust_1` - Current 1st floor dust assignee's first name
 - `sensor.chore_dust_basement` - Current basement dust assignee's first name
 - `sensor.chore_kitchen` - Current kitchen assignee's first name
-- `sensor.dinner_today` - Today's cook
-- `sensor.dinner_tomorrow` - Tomorrow's cook
-- `sensor.ada_care_today` - Today's Ada caregiver
 
 ---
 
@@ -151,16 +124,11 @@ Settings -> Automations -> [Automation Name] -> Traces
 
 ### Adding/Removing People
 1. Update `sensors/chores.yaml` - add/remove from the `names` dict in each sensor
-2. Update `sensors/dinner.yaml` - add/remove from the `schedule` dict
-3. Update `package.yaml` - add/remove options in input_selects
-4. Update automations - adjust rotation lists and notification targets
+2. Update `package.yaml` - add/remove options in input_selects
+3. Update automations - adjust rotation lists and notification targets
 
 ### Changing Distribution
 Edit the chore and people lists in `automations/rotation.yaml`.
-
-### Changing Dinner Schedule
-Edit `sensors/dinner.yaml` - modify the `schedule` dict.
-Edit `automations/dinner_reminder.yaml` - adjust the weekday conditions.
 
 ---
 

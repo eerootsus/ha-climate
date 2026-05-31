@@ -3,7 +3,6 @@ input_select:
     name: Pesutoimkond
     icon: mdi:washing-machine
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
 
@@ -11,7 +10,6 @@ input_select:
     name: Prügitoimkond
     icon: mdi:trash-can
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
 
@@ -19,7 +17,6 @@ input_select:
     name: Tualetitoimkond 1. korrus
     icon: mdi:toilet
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
 
@@ -27,7 +24,6 @@ input_select:
     name: Tualetitoimkond sokkel
     icon: mdi:shower
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
 
@@ -35,7 +31,6 @@ input_select:
     name: Floratoimkond
     icon: mdi:flower
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
 
@@ -43,7 +38,6 @@ input_select:
     name: Kassitoimkond
     icon: mdi:cat
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
 
@@ -51,7 +45,6 @@ input_select:
     name: Tolmutoimkond 1. korrus
     icon: mdi:vacuum
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
 
@@ -59,7 +52,6 @@ input_select:
     name: Tolmutoimkond sokkel
     icon: mdi:broom
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
 
@@ -67,23 +59,8 @@ input_select:
     name: Köögitoimkond
     icon: mdi:silverware-fork-knife
     options:
-      - person.eero_otsus
       - person.katlyn_otsus
       - person.lola_laur
-
-  ada_helper_eero:
-    name: Ada abistab Eerot
-    icon: mdi:account-plus
-    options:
-      - chore_laundry
-      - chore_trash
-      - chore_bathroom_1
-      - chore_bathroom_basement
-      - chore_plants
-      - chore_cat
-      - chore_dust_1
-      - chore_dust_basement
-      - chore_kitchen
 
   ada_helper_katlyn:
     name: Ada abistab Kätlyni

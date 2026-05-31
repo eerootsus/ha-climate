@@ -13,16 +13,6 @@ automation:
           - conditions:
               - condition: state
                 entity_id: input_select.chore_laundry
-                state: "person.eero_otsus"
-            sequence:
-              - service: notify.mobile_app_eeros_iphone_17
-                data:
-                  title: "Pesutoimkond"
-                  message: "Pesumasin lõpetas!"
-
-          - conditions:
-              - condition: state
-                entity_id: input_select.chore_laundry
                 state: "person.katlyn_otsus"
             sequence:
               - service: notify.mobile_app_katu_iphone
@@ -45,9 +35,6 @@ automation:
           - conditions:
               - condition: or
                 conditions:
-                  - condition: state
-                    entity_id: input_select.ada_helper_eero
-                    state: "chore_laundry"
                   - condition: state
                     entity_id: input_select.ada_helper_katlyn
                     state: "chore_laundry"

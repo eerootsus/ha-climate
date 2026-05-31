@@ -24,23 +24,6 @@ automation:
             chore_dust_basement: Tolmutoimkond sokkel
             chore_kitchen: Köögitoimkond
 
-      # Notify Eero
-      - service: notify.mobile_app_eeros_iphone_17
-        data:
-          title: "Nädala toimkonnad"
-          message: >
-            {% set ns = namespace(list=[]) %}
-            {% for chore_id, chore_name in chore_names.items() %}
-              {% if states('input_select.' ~ chore_id) == 'person.eero_otsus' %}
-                {% set ns.list = ns.list + [chore_name] %}
-              {% endif %}
-            {% endfor %}
-            {% if ns.list | length > 0 %}
-              Sinu toimkonnad sel nädalal: {{ ns.list | join(', ') }}
-            {% else %}
-              Sul pole sel nädalal toimkondi!
-            {% endif %}
-
       # Notify Kätlyn
       - service: notify.mobile_app_katu_iphone
         data:
@@ -80,13 +63,9 @@ automation:
         data:
           title: "Nädala toimkonnad"
           message: >
-            {% set eero_chore = states('input_select.ada_helper_eero') %}
             {% set katlyn_chore = states('input_select.ada_helper_katlyn') %}
             {% set lola_chore = states('input_select.ada_helper_lola') %}
             {% set ns = namespace(list=[]) %}
-            {% if eero_chore in chore_names %}
-              {% set ns.list = ns.list + [chore_names[eero_chore] ~ ' (Eeroga)'] %}
-            {% endif %}
             {% if katlyn_chore in chore_names %}
               {% set ns.list = ns.list + [chore_names[katlyn_chore] ~ ' (Kätlyniga)'] %}
             {% endif %}
