@@ -90,7 +90,35 @@ changes needed for the cutover.
   integrations can't be created via the REST API). Stairwell: optional — it has no
   external sensor and already idles natively.
 
+## Open issue: radiator TRVs stuck at 1 % (summer warmth)
+
+Four radiator TRVs (ada, master, kitchen, lola) hold `pi_heating_demand = 1 %` and
+the radiators stay warm in summer; only **stairwell** idles at 0 %. Because the
+boiler must keep circulating (~25 °C) to feed the **bathroom underfloor loops**,
+the loop stays hot and a 1 % valve still passes heat — so turning heating off at
+the boiler isn't an option; the radiator valves themselves must close.
+
+**Tried remotely — none worked** (verified via API): `prioritize external` off,
+external sensor `−8000`, `heat_available` off, and the community `radiator_covered`
+cycle + setpoint nudge (z2m #19495). Even on Ada (best link) nothing moved. A raw
+attribute dump showed the four configured identically to Stairwell
+(`radiator_covered = False`, external `−8000`, offsets 0, adaptation done).
+
+**Most likely confounder: a thin Zigbee mesh.** 29 sleepy end-devices, Lola at
+`rssi −93`, a corner at −100, and router-capable TRADFRI bulbs `unavailable` (lost
+hops). Writes routinely fail/retry and can't be verified as landed (fresh reads
+time out), so "fix didn't work" may = "write never arrived."
+
+**Chosen resolution:** physically **close the manual lockshield valve** on the
+radiators where possible for summer — bulletproof, independent of TRV/mesh. Accepted
+trade-off: those radiators can't be turned on for a cold summer night until reopened.
+
+**If the mesh is improved later:** re-deploy `trv_debug.py` (attribute dump) and
+`trv_unstick.py` (cycle covered + setpoint nudge), re-run on the reliable network,
+and confirm writes land via fresh read-back before trusting any result.
+
 ## Sources
+- Danfoss Ally PID quirks / unstick (cycle radiator_covered + setpoint) — https://github.com/Koenkk/zigbee2mqtt/discussions/19495
 - Better Thermostat docs — https://better-thermostat.org/configuration
 - Danfoss Ally external-sensor calibration writeup — https://ha-praksis.dk/en/case-calibrating-danfoss-ally-with-external-temperature-sensors/
 - Danfoss Ally firmware archive (v1.28/v1.20/v1.18/v1.08), ZHA/deCONZ/Z2M —
