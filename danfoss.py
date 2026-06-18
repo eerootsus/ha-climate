@@ -24,8 +24,27 @@ ATTR_SW_ERROR = 0x4000
 ATTR_RADIATOR_COVERED = 0x4016
 ATTR_EXTERNAL_MEASURED_ROOM_SENSOR = 0x4015
 ATTR_LOAD_BALANCING_ENABLE = 0x4032
+ATTR_SYSTEM_MODE = 0x001C
+
+# SystemMode enum values (Zigbee thermostat cluster). Danfoss eTRV supports off/heat.
+SYSTEM_MODE_OFF = 0x00
+SYSTEM_MODE_HEAT = 0x04
 
 EXTERNAL_SENSOR_DISABLED = -8000
+
+# Danfoss manufacturer-specific attributes live at 0x4000+. Standard ZCL
+# attributes (Time 0x0000, SystemMode 0x001C, ...) must be accessed WITHOUT a
+# manufacturer code; passing one makes zigpy look for a manufacturer-specific
+# variant that doesn't exist and raise KeyError(manufacturer_code).
+MANUFACTURER_SPECIFIC_MIN = 0x4000
+
+# Heating season control. The eTRV is a PID controller that requests heat even
+# when the room is above setpoint (anticipatory "braking", see DANFOSS.md §2.6),
+# so it never fully closes on its own. We switch system_mode based on outdoor
+# temperature, with hysteresis to avoid flapping near the threshold.
+OUTDOOR_TEMP_SENSOR = "sensor.vicare_outside_temperature"
+HEATING_OFF_ABOVE = 18.0  # outdoor °C: switch TRVs to off above this
+HEATING_ON_BELOW = 16.0   # outdoor °C: switch TRVs back to heat below this
 
 LABEL_RADIATOR_COVERED = "radiator_covered"
 LABEL_SENSOR_WEIGHT_PREFIX = "sensor_weight_"
@@ -162,6 +181,11 @@ async def attempt_zigbee_write(
     description: str = "",
 ) -> bool:
     """Attempt a single Zigbee write. Returns True on success, False on failure."""
+    # Only Danfoss manufacturer-specific attributes (0x4000+) take a manufacturer
+    # code; standard ZCL attributes must be written without one.
+    manufacturer = (
+        zha_device.manufacturer_code if attribute >= MANUFACTURER_SPECIFIC_MIN else None
+    )
     try:
         response = await zha_device.write_zigbee_attribute(
             ENDPOINT_ID,
@@ -169,13 +193,17 @@ async def attempt_zigbee_write(
             attribute,
             value,
             cluster_type=CLUSTER_TYPE,
-            manufacturer=zha_device.manufacturer_code,
+            manufacturer=manufacturer,
         )
     except TimeoutError:
         log.warning(f"Timeout writing {description or attribute} for device {device.name_by_user} ({device.id}) - device may be asleep")
         return False
     except ZHAException as e:
         log.warning(f"ZHA error writing {description or attribute} for device {device.name_by_user} ({device.id}): {e}")
+        return False
+    except Exception as e:
+        # Defensive: an unexpected write error must not abort the whole task chain.
+        log.error(f"Unexpected error writing {description or attribute} for device {device.name_by_user} ({device.id}): {e}")
         return False
 
     if response is None:
@@ -355,6 +383,7 @@ async def startup():
     await set_time()
     await radiator_covered()
     await disable_load_balancing()
+    await update_heating_season()
     await update_room_climate_sensors()
     log.info("Startup tasks complete")
 
@@ -485,6 +514,54 @@ async def disable_load_balancing():
 
 
 @service
+@time_trigger("cron(*/30 * * * *)")
+async def update_heating_season():
+    """Switch TRVs off in summer / on in winter based on outdoor temperature.
+
+    Runs at startup and every 30 min. Uses hysteresis: TRVs are set to off when
+    the outdoor temperature is above HEATING_OFF_ABOVE and back to heat when it
+    drops below HEATING_ON_BELOW. Between the two thresholds the current mode is
+    left unchanged. Writes go through the retry queue, so they survive the eTRV's
+    sleepy 5-min wake window (a single direct write to a sleeping eTRV fails).
+    """
+    outdoor_temp = get_sensor_value(OUTDOOR_TEMP_SENSOR)
+    if outdoor_temp is None:
+        log.warning(f"Outdoor sensor {OUTDOOR_TEMP_SENSOR} unavailable, skipping heating season update")
+        return
+
+    if outdoor_temp > HEATING_OFF_ABOVE:
+        desired_mode = SYSTEM_MODE_OFF
+        desired_state = "off"
+    elif outdoor_temp < HEATING_ON_BELOW:
+        desired_mode = SYSTEM_MODE_HEAT
+        desired_state = "heat"
+    else:
+        log.info(f"Outdoor temp {outdoor_temp:.1f}°C within hysteresis band ({HEATING_ON_BELOW}-{HEATING_OFF_ABOVE}°C), leaving TRV modes unchanged")
+        return
+
+    log.info(f"Outdoor temp {outdoor_temp:.1f}°C: target TRV mode = {desired_state}")
+
+    for device in get_trv_devices():
+        # Read current mode from the cached climate entity (free, no Zigbee read).
+        climate_entity = get_climate_entity_for_device(device, SensorDeviceClass.TEMPERATURE)
+        if climate_entity is not None and climate_entity.startswith("climate."):
+            current_state = state.get(climate_entity)
+            if current_state == desired_state:
+                log.debug(f"Device {device.name_by_user} already {desired_state}")
+                continue
+
+        success = await queue_zigbee_write(
+            device,
+            CLUSTER_THERMOSTAT,
+            ATTR_SYSTEM_MODE,
+            desired_mode,
+            description=f"system_mode={desired_state} for {device.name_by_user}",
+        )
+        if success:
+            log.info(f"Set system_mode={desired_state} for device {device.name_by_user} ({device.id})")
+
+
+@service
 @time_trigger("cron(*/5 * * * *)")
 async def update_room_climate_sensors():
     """Update virtual room climate sensors from external weighted sensors only.
@@ -585,6 +662,18 @@ async def update_external_temperatures():
                 temperature = EXTERNAL_SENSOR_DISABLED
 
         for device in devices:
+            # Skip TRVs that are off (e.g. summer): the external sensor isn't used
+            # for control when off, so transmitting it just wastes the eTRV's
+            # limited radio/battery budget (see DANFOSS.md §1.1).
+            climate_entity = get_climate_entity_for_device(device, SensorDeviceClass.TEMPERATURE)
+            if (
+                climate_entity is not None
+                and climate_entity.startswith("climate.")
+                and state.get(climate_entity) == "off"
+            ):
+                log.debug(f"Device {device.name_by_user} is off, skipping external sensor update")
+                continue
+
             if temperature == EXTERNAL_SENSOR_DISABLED:
                 description = f"disable external sensor for {device.name_by_user}"
             else:

@@ -33,8 +33,9 @@ No build step required. Dependencies in `requirements.txt` are Home Assistant's 
   - `set_time()` - Weekly time sync to TRV Zigbee cluster
   - `radiator_covered()` - Weekly check/update of radiator obstruction attribute based on device labels
   - `disable_load_balancing()` - Weekly disable of load balancing (only needed for multi-TRV rooms)
+  - `update_heating_season()` - Every 30 min, sets TRV `system_mode` off/heat based on outdoor temp with hysteresis (off >18°C, on <16°C, from `sensor.vicare_outside_temperature`). The eTRV is a PID controller that requests heat even above setpoint (see `DANFOSS.md` §2.6), so it never closes on its own in summer — switching it off is the fix.
   - `update_room_climate_sensors()` - Every 5 min, creates virtual `sensor.climate_{area_id}_{type}` entities
-  - `update_external_temperatures()` - Pushes virtual sensor values back to TRV external sensor attribute
+  - `update_external_temperatures()` - Pushes virtual sensor values back to TRV external sensor attribute; skips TRVs currently `off`
   - `process_pending_writes()` - Every 1 min, retries failed Zigbee writes
 - **Zigbee Retry Queue**: All writes go through `queue_zigbee_write()` which attempts immediately and queues failures for retry with exponential backoff (60s base, 4h max, 10 retries). Newer writes replace pending ones for same device+attribute.
 
@@ -48,7 +49,11 @@ CLUSTER_THERMOSTAT = 0x0201     # Thermostat cluster
 ATTR_RADIATOR_COVERED = 0x4016  # Manufacturer-specific
 ATTR_EXTERNAL_MEASURED_ROOM_SENSOR = 0x4015
 ATTR_LOAD_BALANCING_ENABLE = 0x4032
+ATTR_SYSTEM_MODE = 0x001C       # off=0x00, heat=0x04
 ```
+
+See `DANFOSS.md` for a curated reference of the eTRV's clusters, attributes,
+and control logic (PID heat-request behavior, external-sensor modes, etc.).
 
 ## Retry Queue Configuration
 

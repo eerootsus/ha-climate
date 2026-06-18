@@ -1,0 +1,12 @@
+# Local Claude rules / secrets — never commit
+.claude/rules/local.md
+
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# Reference PDFs
+*.pdf
