@@ -378,7 +378,6 @@ async def startup():
     await set_time()
     await radiator_covered()
     await disable_load_balancing()
-    await disable_external_sensors()
     await update_room_climate_sensors()
     log.info("Startup tasks complete")
 
@@ -585,8 +584,12 @@ async def disable_external_sensors():
     can fully close (no anticipatory ~1% floor — see DANFOSS.md §2.6). Control is
     handled by Better Thermostat instead (see BETTER_THERMOSTAT.md); the weighted
     sensor.climate_* sensors published by update_room_climate_sensors() are BT's
-    input. Runs at startup; the eTRV keeps the sensor disabled once it's no longer
-    fed, so there's no need to rewrite it every cycle.
+    input.
+
+    Manual-only service — intentionally NOT in the startup sequence: once disabled
+    the sensor stays off because nothing feeds it, so HA restarts no longer touch
+    the (BT-owned) TRVs. Call this only to re-assert the disable, e.g. after a TRV
+    battery change re-enables the external-sensor priority.
     """
     log.info("Disabling external sensors on all TRVs")
 
