@@ -41,23 +41,40 @@ Levers that influence (but do not guarantee) wind-down: the control scale factor
 (valve characteristic found). There is **no documented minimum-opening floor** —
 the steady 1% is the loop's residual output, not a constant.
 
-### The only deterministic "off" is `system_mode = off`
+### "off" is 5 °C anti-freeze — and it does NOT stop the leak
 
-You cannot reliably force a closed valve via setpoint or external-sensor tricks
-because of the anticipatory bias. Setting `system_mode = off` (`0x0201/0x001C` = 0)
-halts the PID entirely and is the only way to guarantee no demand. **This is the
-summer mechanism** (`update_heating_season`): off above 18 °C outdoor, heat below
-16 °C, with the 16–18 °C band left unchanged (hysteresis), driven by
-`sensor.vicare_outside_temperature`.
+These eTRVs have no true power-off. Setting the HA climate entity to `off` (or
+`hvac_mode: off`) does **not** change `system_mode` — the mode stays `heat` and the
+device simply drives the **setpoint to ~5 °C (anti-freeze)**. Writing
+`SystemMode = 0` is not honored (verified: across many attempts the state never
+once became `off`).
+
+Critically, **5 °C frost alone does not close an externally-fed valve** — observed
+live, all externally-fed TRVs held `pi_heating_demand = 1` even at a 5 °C setpoint
+with the room 17 °C above it. The anticipatory floor comes from the external-sensor
+control path, not from the setpoint.
+
+### What actually closes the valve: remove the external sensor feed
+
+The reliable lever is to stop feeding the external room sensor (`0x4015 = -8000`).
+The eTRV then controls on its internal sensor and idles (0 %) once the room is
+above setpoint — exactly the Stairwell behavior. **This is the summer mechanism**
+(`update_heating_season`): disable external sensors above 18 °C outdoor, resume
+below 16 °C, with the 16–18 °C band left unchanged (hysteresis), driven by
+`sensor.vicare_outside_temperature`. Setpoints are left to the user/schedule.
+
+Caveat: with the external sensor off, a valve will still open if the room drops
+below its setpoint (e.g. a cool summer morning against a winter setpoint). In
+practice the user's summer "off" (5 °C) setpoints keep rooms well above setpoint,
+so valves stay closed.
 
 ### How this automation drives the eTRVs
 
 - **Room temperature feed** — every 5 min we push a weighted room temperature into
-  each TRV's external room sensor (`0x4015`). TRVs currently `off` are skipped, to
-  spare the eTRV's limited radio/battery budget (≈650 msgs/day, §1.1). When a room
-  has no external sensor, we write `-8000` to disable the feature so the eTRV falls
-  back to its internal estimate.
-- **Seasonal on/off** — `update_heating_season` as above.
+  each TRV's external room sensor (`0x4015`). When a room has no external sensor —
+  or in summer mode — we write `-8000` to disable the feature so the eTRV falls
+  back to its internal estimate (sparing radio/battery too, ≈650 msgs/day, §1.1).
+- **Seasonal external-sensor toggle** — `update_heating_season` as above.
 - **Config maintenance** — weekly: time sync (`0x000A`), `Radiator Covered`
   (`0x4016`, from device label → selects §2.3 vs §2.4), and load balancing disabled
   (`0x4032`, since every room here has a single TRV).
