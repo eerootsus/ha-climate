@@ -18,13 +18,13 @@ sensor.climate_<area>_temperature        target temp + calibration            (a
                                           outdoor threshold (summer off)
 ```
 
-- **danfoss.py keeps:** `update_room_climate_sensors` (the weighted
-  `sensor.climate_<area>_temperature` virtual sensors — these become BT's external
-  sensor input), `set_time`, `disable_load_balancing`, and the device/area helpers.
-- **danfoss.py drops (once BT is live):** `update_external_temperatures` and
-  `update_heating_season` — BT owns control and its outdoor threshold owns summer.
+- **danfoss.py is now sensor-aggregation only:** `update_room_climate_sensors`
+  publishes the weighted `sensor.climate_<area>_temperature` (BT's per-room input)
+  plus its helpers. **All TRV writes were removed** (time sync, radiator-covered,
+  load-balancing, external-sensor feed, retry queue) so it cannot fight BT.
 - **eTRV native external sensor is turned OFF** so it doesn't fight BT:
-  `prioritize external temperature sensor = off` and external sensor = `-8000`.
+  `prioritize external temperature sensor = off` and external sensor = `-8000`
+  (done on all TRVs).
 
 ## Per-room mapping
 
@@ -57,8 +57,9 @@ sensor.climate_<area>_temperature        target temp + calibration            (a
    - **Tolerance:** small (e.g. 0.3 °C) to limit valve cycling
 4. **Verify:** with a room above target, BT should drive the eTRV to its off/5 °C
    state and `pi_heating_demand` should reach **0** (the thing native mode never did).
-5. **Then trim danfoss.py** to the aggregator+maintenance role (remove
-   `update_external_temperatures` and `update_heating_season`; keep the sensors).
+
+danfoss.py has already been trimmed to sensor-aggregation only — no further code
+changes needed for the cutover.
 
 ## Firmware normalization (separate track)
 

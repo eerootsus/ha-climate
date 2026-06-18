@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HA Climate is a Home Assistant PyScript automation for managing Danfoss eTRV0103 Zigbee thermostatic radiator valves (TRVs). It creates virtual room climate sensors with weighted averaging from multiple TRVs and external sensors.
+HA Climate is a Home Assistant PyScript helper for Danfoss eTRV0103 Zigbee thermostatic radiator valves (TRVs). It publishes per-room weighted virtual temperature/humidity sensors from external sensors. Heating control itself is handled by **Better Thermostat** (see `BETTER_THERMOSTAT.md`), which consumes these sensors; this script no longer writes to the TRVs.
 
 ## Setup & Deployment
 
@@ -27,45 +27,38 @@ No build step required. Dependencies in `requirements.txt` are Home Assistant's 
 
 **danfoss.py** - Main PyScript module containing:
 
-- **Device Management**: Functions to retrieve TRV devices from HA registries, find associated climate/sensor entities, and convert to ZHA Zigbee devices
-- **Weighted Calculation**: `calculate_weighted_climate()` computes area averages where TRVs have weight 0.5 and external sensors use device label weights (e.g., `sensor_weight_2`)
-- **Scheduled Tasks** (PyScript time_trigger decorators):
-  - `set_time()` - Weekly time sync to TRV Zigbee cluster
-  - `radiator_covered()` - Weekly check/update of radiator obstruction attribute based on device labels
-  - `disable_load_balancing()` - Weekly disable of load balancing (only needed for multi-TRV rooms)
-  - `disable_external_sensors()` - **Manual-only service** (not in startup). Writes `-8000` to every TRV's external sensor. The native external-sensor feed is **retired**: when fed, the eTRV's PID holds an anticipatory ~1% valve opening and never fully closes (confirmed across all externally-fed TRVs; see `DANFOSS.md` §2.6). Control is handed to **Better Thermostat** (see `BETTER_THERMOSTAT.md`), which drives the setpoint with the native sensor off. Once disabled the sensor stays off (nothing feeds it), so HA restarts no longer touch the BT-owned TRVs; call this only to re-assert the disable (e.g. after a TRV battery swap).
-  - `update_room_climate_sensors()` - Every 5 min, creates virtual `sensor.climate_{area_id}_{type}` entities. These are now consumed by Better Thermostat as its per-room external sensor (no longer pushed into the TRV).
-  - `process_pending_writes()` - Every 1 min, retries failed Zigbee writes
-- **Zigbee Retry Queue**: All writes go through `queue_zigbee_write()` which attempts immediately and queues failures for retry with exponential backoff (60s base, 4h max, 10 retries). Newer writes replace pending ones for same device+attribute.
+danfoss.py is now **sensor-aggregation only** — it performs **no writes to the
+TRVs** and does not control heating. Heating control (setpoint, on/off,
+calibration) is owned entirely by **Better Thermostat** (see `BETTER_THERMOSTAT.md`).
+
+- **Weighted Calculation**: `calculate_weighted_climate()` computes a per-area
+  weighted average from external sensors labelled `sensor_weight_X` (TRV
+  temperatures are excluded so heating doesn't skew it).
+- **`update_room_climate_sensors()`** (PyScript, at startup + every 5 min):
+  publishes `sensor.climate_{area_id}_temperature` / `_humidity`. These are the
+  single per-room sensors Better Thermostat consumes (BT does not do weighted
+  averaging itself).
+
+That's the whole module. The previous Zigbee control logic — time sync,
+radiator-covered, load-balancing, external-sensor feed/disable, and the
+retry queue — was removed so the script can never interfere with BT. (See git
+history and `DANFOSS.md` if that logic is ever needed again.)
 
 **trv-climate/climate.yaml** - Template sensor definitions wrapping pyscript-created sensors for proper HA UI management.
 
-## Key Zigbee Constants
+## Why control moved to Better Thermostat
 
-```python
-CLUSTER_TIME = 0x000A           # Time cluster
-CLUSTER_THERMOSTAT = 0x0201     # Thermostat cluster
-ATTR_RADIATOR_COVERED = 0x4016  # Manufacturer-specific
-ATTR_EXTERNAL_MEASURED_ROOM_SENSOR = 0x4015  # -8000 disables (use internal sensor)
-ATTR_LOAD_BALANCING_ENABLE = 0x4032
-```
-
-See `DANFOSS.md` for a curated reference of the eTRV's clusters, attributes,
-and control logic (PID heat-request behavior, external-sensor modes, etc.).
-
-## Retry Queue Configuration
-
-```python
-MAX_RETRIES = 10
-BASE_DELAY_SECONDS = 60   # Doubles each retry
-MAX_DELAY_SECONDS = 14400 # 4 hours cap
-```
+The Danfoss eTRV's native external-sensor feature holds an anticipatory ~1% valve
+opening and never fully closes when fed an external sensor (confirmed across all
+externally-fed TRVs; only an unfed one idles — see `DANFOSS.md` §2.6, and note
+"off" is only 5°C anti-freeze, not a real off). Control was therefore handed to
+Better Thermostat, which drives the setpoint with the native external sensor
+disabled. `DANFOSS.md` is the curated eTRV Zigbee/feature reference.
 
 ## Device Labels
 
 Configure in Home Assistant UI on devices:
-- `radiator_covered` - Mark TRVs behind furniture/curtains
-- `sensor_weight_X` - External sensors with weight X for averaging
+- `sensor_weight_X` - External sensors with weight X for the room average
 
 ## Adding New Areas
 
