@@ -99,6 +99,22 @@ It is used only in that direction.
 −4 °C" is a very different claim from "0.9 held at −15 °C". Do not size a heat pump
 off a slope validated in mild weather.
 
+## Ascend-only mode (start low, raise if needed)
+
+The slope was set to **0.9** manually in Aug 2026 on a start-low-and-raise plan. To run
+that instead of descending, set `curve_test_min_slope` to the current slope (0.9):
+step-down then fails its own condition and never fires. What remains is the half that
+matters for this strategy — hold, monitor, **raise 0.1 on any sustained shortfall**,
+record how cold it survived.
+
+Because the step never rolls over in this mode, `curve_test_step_min_outside`
+accumulates the coldest temperature the slope has survived since starting, which *is*
+the result: "0.9 held, coldest −11 °C." `input_text.curve_test_result` carries the same
+in one readable line.
+
+Ascend-only is the better choice if the valves are not yet trustworthy: it fails toward
+comfort, and never probes downward on data you cannot rely on.
+
 ## Install
 
 ```

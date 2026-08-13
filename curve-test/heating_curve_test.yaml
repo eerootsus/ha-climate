@@ -83,6 +83,14 @@ input_datetime:
     has_date: true
     has_time: true
 
+input_text:
+  curve_test_result:
+    name: Curve test result
+    max: 255
+    icon: mdi:clipboard-text
+    # The answer, in one readable line, visible in the UI rather than only in a
+    # push notification. Written on every step change and on every failure.
+
 template:
   - sensor:
       # Worst shortfall across the rooms that actually have an external sensor.
@@ -134,14 +142,21 @@ template:
           {% set s = state_attr('climate.trv_danfoss_stairwell_thermostat_3', 'current_temperature') %}
           Lola {{ l if l is not none else '?' }} / Trepihall {{ s if s is not none else '?' }}
 
-      # Confounder discriminator. The slope was raised to 1.2 manually, without a
-      # controlled test, during a period of unreliable TRV control — so a shortfall
-      # may be a stuck/unreachable valve rather than a genuine emitter limit.
+      # Confounder discriminator. The slope was set by hand, without a controlled
+      # test, during a period of unreliable TRV control — so a shortfall may be a
+      # stuck/unreachable valve rather than a genuine emitter limit.
       #
       # pi_heating_demand is useless as a "needs heat" signal (residual 1 % floor),
       # but it is a serviceable *fault* signal in the other direction: a room sitting
       # below target while its PID reports <=1 % is not a curve problem. Staleness
       # catches the mesh dropping writes.
+      #
+      # ⚠️ ON SWAPPING TRVs (e.g. to Sonoff TRVZB): update the room -> demand-entity
+      # map below. TRVZB has no pi_heating_demand; use its valve-position or
+      # hvac_action entity instead. If an entity here does not exist the diagnosis
+      # returns `no_diagnosis`, which is treated as inconclusive — it will pause the
+      # descent rather than invent a curve floor, but the test is then blind until
+      # the map is fixed.
       - name: Curve test failure diagnosis
         unique_id: curve_test_failure_diagnosis
         state: >
@@ -162,6 +177,7 @@ template:
           {% endfor %}
           {% if ns.worst is none %}no_data
           {% elif ns.deficit <= tol %}ok
+          {% elif not has_value(ns.trv) and states[ns.trv] is not defined %}no_diagnosis
           {% else %}
             {% set dem = states(ns.trv) | float(-1) %}
             {% set age = (as_timestamp(now()) - as_timestamp(states[ns.trv].last_updated, 0)) / 60 %}
@@ -254,6 +270,14 @@ automation:
           entity_id: number.vitodens_100_heating_curve_slope
         data:
           value: "{{ new_slope }}"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.curve_test_result
+        data:
+          value: >-
+            {{ states('input_number.curve_test_best_validated_slope') }} held to
+            {{ states('input_number.curve_test_best_validated_outside') }}C; now
+            trying {{ new_slope }}
       - service: script.turn_on
         target:
           entity_id: script.curve_test_begin_step
@@ -308,6 +332,22 @@ automation:
               - service: input_boolean.turn_on
                 target:
                   entity_id: input_boolean.curve_test_floor_found
+              # The real result: this slope FAILED, and at what outdoor temperature.
+              # Also keeps the coldest the failed step had survived before giving out.
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.curve_test_result
+                data:
+                  value: >-
+                    {{ failed_at }} FAILED at
+                    {{ states('sensor.vicare_outside_temperature') }}C (survived to
+                    {{ states('input_number.curve_test_step_min_outside') }}C);
+                    need {{ reverted_to }}
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.curve_test_best_validated_slope
+                data:
+                  value: "{{ reverted_to }}"
               - service: notify.mobile_app_eeros_iphone_17
                 data:
                   title: Curve test - floor found
@@ -324,6 +364,15 @@ automation:
         # TRV stuck shut or unreachable: proves nothing about the curve. Pause rather
         # than latch a floor, so a mesh fault can't masquerade as "radiators need 1.2".
         default:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.curve_test_result
+            data:
+              value: >-
+                {{ failed_at }} inconclusive ({{ diagnosis }}) at
+                {{ states('sensor.vicare_outside_temperature') }}C,
+                {{ states('sensor.curve_test_worst_room') }} short
+                {{ states('sensor.curve_test_worst_deficit') }}K -> {{ reverted_to }}
           - service: input_boolean.turn_on
             target:
               entity_id: input_boolean.curve_test_inconclusive
