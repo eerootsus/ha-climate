@@ -1,0 +1,170 @@
+# Battery monitor — weekly nudge, plus immediate alert for safety devices.
+#
+# General HA housekeeping rather than climate-specific, but it lives here because
+# this is the de facto HA config repo and because the climate hardware is what keeps
+# going flat.
+#
+# The real problem is a feedback loop: a thin mesh means sleepy devices retry
+# transmissions, retries burn battery, dead devices remove what little routing exists,
+# and the mesh gets thinner. Fresh batteries in a bad mesh drain again — the routers
+# are the fix, batteries are symptom relief. This monitor is therefore also the
+# instrument for checking whether the routers actually worked: battery levels are
+# numeric, so HA long-term statistics keep them indefinitely, and the decline slope
+# before vs after the ZBMINIR2s go in is directly plottable in a statistics graph card.
+#
+# Install: copy to config/battery-monitor/ and add under homeassistant: packages:
+#   battery_monitor: !include battery-monitor/battery_monitor.yaml
+
+input_number:
+  battery_warn_level:
+    name: Battery warning level
+    min: 5
+    max: 60
+    step: 5
+    initial: 40
+    unit_of_measurement: "%"
+    icon: mdi:battery-alert
+    # 40 rather than the usual 20-25: on a thin mesh these drain fast, so the extra
+    # lead time is the point. `initial` means a restart resets it — deliberate, as a
+    # threshold that silently restores to 5 % (the minimum) would monitor nothing.
+
+template:
+  # Trigger-based on purpose. A plain template sensor iterating `states.sensor` would
+  # subscribe to every sensor in the system and recompute on each one's change; hourly
+  # is far more than enough for battery levels.
+  - trigger:
+      - platform: time_pattern
+        hours: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: Battery attention count
+        unique_id: battery_attention_count
+        state_class: measurement
+        unit_of_measurement: devices
+        # Computed inline, NOT from this sensor's own attributes: state and attributes
+        # are evaluated in the same pass, so a self-reference would read the previous
+        # cycle (and None on first run).
+        state: >
+          {% set warn = states('input_number.battery_warn_level') | float(25) %}
+          {% set ns = namespace(n=0) %}
+          {% for s in states.sensor
+               | selectattr('attributes.device_class','defined')
+               | selectattr('attributes.device_class','eq','battery')
+               | rejectattr('entity_id','search','iphone|ipad|watch|macbook|phone') %}
+            {% if s.state in ['unavailable','unknown'] or s.state | float(101) <= warn %}
+              {% set ns.n = ns.n + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.n }}
+        attributes:
+          # Phones, tablets and watches are excluded: they live below any sane
+          # threshold and are not what "go change a battery" means.
+          dead: >
+            {% set ns = namespace(o=[]) %}
+            {% for s in states.sensor
+                 | selectattr('attributes.device_class','defined')
+                 | selectattr('attributes.device_class','eq','battery')
+                 | rejectattr('entity_id','search','iphone|ipad|watch|macbook|phone') %}
+              {% if s.state in ['unavailable','unknown'] %}
+                {% set ns.o = ns.o + [ s.name | replace(' Battery','') | replace(' Aku','') ] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.o | sort }}
+          low: >
+            {% set warn = states('input_number.battery_warn_level') | float(25) %}
+            {% set ns = namespace(o=[]) %}
+            {% for s in states.sensor
+                 | selectattr('attributes.device_class','defined')
+                 | selectattr('attributes.device_class','eq','battery')
+                 | rejectattr('entity_id','search','iphone|ipad|watch|macbook|phone') %}
+              {% if s.state not in ['unavailable','unknown'] and s.state | float(101) <= warn %}
+                {% set ns.o = ns.o + [ (s.name | replace(' Battery','') | replace(' Aku',''))
+                                       ~ ' ' ~ s.state ~ '%' ] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.o | sort }}
+          # Binary battery sensors report low as `on` rather than a percentage.
+          flagged_low: >
+            {% set ns = namespace(o=[]) %}
+            {% for s in states.binary_sensor
+                 | selectattr('attributes.device_class','defined')
+                 | selectattr('attributes.device_class','eq','battery') %}
+              {% if s.state == 'on' %}{% set ns.o = ns.o + [ s.name ] %}{% endif %}
+            {% endfor %}
+            {{ ns.o | sort }}
+
+automation:
+  - id: battery_weekly_digest
+    alias: Battery - weekly digest
+    description: >
+      Sunday morning nudge. Only fires when something actually needs doing, so it
+      stays a signal rather than furniture.
+    trigger:
+      - platform: time
+        at: "10:00:00"
+    condition:
+      - condition: time
+        weekday: [sun]
+      - condition: numeric_state
+        entity_id: sensor.battery_attention_count
+        above: 0
+    action:
+      - variables:
+          dead: "{{ state_attr('sensor.battery_attention_count','dead') | default([], true) }}"
+          low: "{{ state_attr('sensor.battery_attention_count','low') | default([], true) }}"
+          flagged: "{{ state_attr('sensor.battery_attention_count','flagged_low') | default([], true) }}"
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: >
+            Batteries: {{ dead | count }} dead, {{ low | count }} low
+          message: >
+            {% if dead | count > 0 %}DEAD (silent, no data): {{ dead | join(', ') }}.
+            {% endif %}
+            {% if low | count > 0 %}Low: {{ low | join(', ') }}.
+            {% endif %}
+            {% if flagged | count > 0 %}Flagged: {{ flagged | join(', ') }}.
+            {% endif %}
+            Fix the mesh before restocking — retries on a thin network are what drains these.
+          data:
+            push:
+              thread-id: batteries
+
+  # A leak sensor with a flat battery fails silently: no alert, and no warning that
+  # there is no alert. A week of that is too long, so these do not wait for Sunday.
+  - id: battery_critical_offline
+    alias: Battery - safety device offline
+    trigger:
+      - platform: template
+        value_template: >
+          {% set ns = namespace(o=[]) %}
+          {% for s in states.sensor
+               | selectattr('attributes.device_class','defined')
+               | selectattr('attributes.device_class','eq','battery')
+               | selectattr('entity_id','search','leak|smoke|moisture|water|flood') %}
+            {% if s.state in ['unavailable','unknown'] %}
+              {% set ns.o = ns.o + [ s.name ] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.o | count > 0 }}
+        for: "06:00:00"
+    action:
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: Safety sensor offline
+          message: >
+            {% set ns = namespace(o=[]) %}
+            {% for s in states.sensor
+                 | selectattr('attributes.device_class','defined')
+                 | selectattr('attributes.device_class','eq','battery')
+                 | selectattr('entity_id','search','leak|smoke|moisture|water|flood') %}
+              {% if s.state in ['unavailable','unknown'] %}
+                {% set ns.o = ns.o + [ s.name | replace(' Battery','') | replace(' Aku','') ] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.o | join(', ') }} — no data for 6 h. Leak/smoke protection is off
+            until this is replaced.
+          data:
+            push:
+              thread-id: batteries
+              interruption-level: time-sensitive

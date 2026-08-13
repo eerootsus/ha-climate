@@ -142,3 +142,23 @@ When you add TRVs to a new area:
 ```
 
 3. Reload YAML or restart Home Assistant
+
+## Battery monitor
+
+`battery-monitor/battery_monitor.yaml` — a weekly Sunday-morning digest of dead and
+low batteries, plus an immediate alert when a **leak/smoke sensor** goes offline
+(a flat battery on those fails silently: no alert, and no warning that there is no
+alert). Copy to `config/battery-monitor/` and include as a package.
+
+Threshold `input_number.battery_warn_level` defaults to **40 %**, higher than the usual
+20–25 %, because of the feedback loop below.
+
+**Why batteries and the mesh are one problem:** a thin mesh makes sleepy devices retry
+transmissions, retries burn battery, dead devices remove what little routing exists, and
+the mesh gets thinner still. **Fresh batteries in a bad mesh drain again** — the routers
+are the fix, batteries are symptom relief. Do the ZBMINIR2s first, or at least in the
+same visit.
+
+Battery levels are numeric, so HA long-term statistics keep them indefinitely: the
+decline slope before vs after the routers go in is directly plottable, which makes this
+the instrument for confirming the mesh work actually helped.
