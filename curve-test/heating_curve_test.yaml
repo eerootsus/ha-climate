@@ -1,0 +1,448 @@
+# Heating curve test — find the lowest Vitodens curve slope the radiators tolerate.
+#
+# Purpose: a heat pump's COP is set by flow temperature. Radiators sized for a gas
+# boiler are usually oversized enough to run 10-15 K cooler than the installed curve.
+# This steps the slope down and lets the house tell us where the floor is.
+#
+# Deliberately does NOT use pi_heating_demand or any TRV attribute: externally-fed
+# Danfoss eTRVs hold a residual 1 % demand regardless of room temperature (see
+# BETTER_THERMOSTAT.md), and the mesh is unreliable. Pass/fail is room temperature
+# from the virtual sensors only, so this survives swapping the TRVs out.
+#
+# Install: copy to config/curve-test/ and add under homeassistant: packages:
+#   curve_test: !include curve-test/heating_curve_test.yaml
+
+input_boolean:
+  curve_test_enabled:
+    name: Curve test enabled
+    icon: mdi:test-tube
+  curve_test_floor_found:
+    name: Curve test floor found
+    icon: mdi:arrow-collapse-down
+  curve_test_step_failed:
+    name: Curve test step failed
+    icon: mdi:alert
+  curve_test_inconclusive:
+    name: Curve test inconclusive (TRV fault suspected)
+    icon: mdi:help-rhombus
+
+input_number:
+  curve_test_target_temp:
+    name: Curve test target room temp
+    min: 17
+    max: 24
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:home-thermometer
+    # Fixed target rather than reading a TRV/BT setpoint: those move under us and
+    # are calibration-shifted. This is the comfort line we are defending.
+  curve_test_tolerance:
+    name: Curve test allowed deficit
+    min: 0.2
+    max: 2.0
+    step: 0.1
+    unit_of_measurement: "K"
+    icon: mdi:delta
+  curve_test_step_days:
+    name: Curve test days per step
+    min: 3
+    max: 21
+    step: 1
+    unit_of_measurement: "d"
+    icon: mdi:calendar-clock
+  curve_test_min_slope:
+    name: Curve test slope floor
+    min: 0.4
+    max: 1.2
+    step: 0.1
+    icon: mdi:arrow-down-bold
+  curve_test_step_min_outside:
+    name: Curve test coldest outside this step
+    min: -40
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    icon: mdi:snowflake-thermometer
+  curve_test_best_validated_slope:
+    name: Curve test best validated slope
+    min: 0.4
+    max: 1.5
+    step: 0.1
+    icon: mdi:check-decagram
+  curve_test_best_validated_outside:
+    name: Curve test best validated at outside
+    min: -40
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-check
+
+input_datetime:
+  curve_test_step_started:
+    name: Curve test step started
+    has_date: true
+    has_time: true
+
+template:
+  - sensor:
+      # Worst shortfall across the rooms that actually have an external sensor.
+      # Lola's room and Trepihall are excluded: their virtual sensors are
+      # unavailable (no external sensor fitted), so they are blind spots.
+      - name: Curve test worst deficit
+        unique_id: curve_test_worst_deficit
+        unit_of_measurement: "K"
+        state_class: measurement
+        state: >
+          {% set target = states('input_number.curve_test_target_temp') | float(21.0) %}
+          {% set rooms = [
+               'sensor.climate_ada_s_room_temperature',
+               'sensor.climate_bedroom_temperature',
+               'sensor.climate_kitchen_temperature' ] %}
+          {% set vals = rooms | map('states') | map('float', -999) | select('gt', -100) | list %}
+          {{ (target - (vals | min)) | round(2) if vals | count > 0 else 0 }}
+        attributes:
+          rooms_reporting: >
+            {% set rooms = [
+                 'sensor.climate_ada_s_room_temperature',
+                 'sensor.climate_bedroom_temperature',
+                 'sensor.climate_kitchen_temperature' ] %}
+            {{ rooms | map('states') | map('float', -999) | select('gt', -100) | list | count }}
+
+      - name: Curve test worst room
+        unique_id: curve_test_worst_room
+        state: >
+          {% set target = states('input_number.curve_test_target_temp') | float(21.0) %}
+          {% set ns = namespace(worst='none', deficit=-99) %}
+          {% for e in [
+               'sensor.climate_ada_s_room_temperature',
+               'sensor.climate_bedroom_temperature',
+               'sensor.climate_kitchen_temperature' ] %}
+            {% set v = states(e) | float(-999) %}
+            {% if v > -100 and (target - v) > ns.deficit %}
+              {% set ns.deficit = target - v %}
+              {% set ns.worst = state_attr(e, 'friendly_name') or e %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.worst }}
+
+      # Advisory only — TRV internal temps run warm (radiator in the same box).
+      # Surfaced so the two sensorless zones are not completely invisible.
+      - name: Curve test blind zones
+        unique_id: curve_test_blind_zones
+        state: >
+          {% set l = state_attr('climate.trv_danfoss_lola', 'current_temperature') %}
+          {% set s = state_attr('climate.trv_danfoss_stairwell_thermostat_3', 'current_temperature') %}
+          Lola {{ l if l is not none else '?' }} / Trepihall {{ s if s is not none else '?' }}
+
+      # Confounder discriminator. The slope was raised to 1.2 manually, without a
+      # controlled test, during a period of unreliable TRV control — so a shortfall
+      # may be a stuck/unreachable valve rather than a genuine emitter limit.
+      #
+      # pi_heating_demand is useless as a "needs heat" signal (residual 1 % floor),
+      # but it is a serviceable *fault* signal in the other direction: a room sitting
+      # below target while its PID reports <=1 % is not a curve problem. Staleness
+      # catches the mesh dropping writes.
+      - name: Curve test failure diagnosis
+        unique_id: curve_test_failure_diagnosis
+        state: >
+          {% set target = states('input_number.curve_test_target_temp') | float(21.0) %}
+          {% set tol = states('input_number.curve_test_tolerance') | float(0.5) %}
+          {% set map = {
+               'sensor.climate_ada_s_room_temperature':  'sensor.trv_danfoss_ada_pi_heating_demand',
+               'sensor.climate_bedroom_temperature':     'sensor.trv_danfoss_master_pi_heating_demand',
+               'sensor.climate_kitchen_temperature':     'sensor.trv_danfoss_kitchen_pi_heating_demand' } %}
+          {% set ns = namespace(worst=None, deficit=-99, trv=None) %}
+          {% for room, trv in map.items() %}
+            {% set v = states(room) | float(-999) %}
+            {% if v > -100 and (target - v) > ns.deficit %}
+              {% set ns.deficit = target - v %}
+              {% set ns.worst = room %}
+              {% set ns.trv = trv %}
+            {% endif %}
+          {% endfor %}
+          {% if ns.worst is none %}no_data
+          {% elif ns.deficit <= tol %}ok
+          {% else %}
+            {% set dem = states(ns.trv) | float(-1) %}
+            {% set age = (as_timestamp(now()) - as_timestamp(states[ns.trv].last_updated, 0)) / 60 %}
+            {% if dem < 0 or age > 120 %}trv_unreachable
+            {% elif dem <= 1 %}trv_not_calling
+            {% else %}curve
+            {% endif %}
+          {% endif %}
+        attributes:
+          detail: >
+            {% set map = {
+                 'sensor.climate_ada_s_room_temperature':  'sensor.trv_danfoss_ada_pi_heating_demand',
+                 'sensor.climate_bedroom_temperature':     'sensor.trv_danfoss_master_pi_heating_demand',
+                 'sensor.climate_kitchen_temperature':     'sensor.trv_danfoss_kitchen_pi_heating_demand' } %}
+            {% set out = [] %}
+            {% for room, trv in map.items() %}
+              {% set out = out + [ (state_attr(room,'friendly_name') or room) ~ ' ' ~ states(room)
+                                   ~ '°C / demand ' ~ states(trv) ~ '%' ] %}
+            {% endfor %}
+            {{ out | join(' | ') }} | flow {{ states('sensor.vicare_supply_temperature') }}°C
+            | burner {{ states('binary_sensor.vicare_burner_active') }}
+            mod {{ states('sensor.vicare_burner_modulation') }}%
+
+      - name: Curve test status
+        unique_id: curve_test_status
+        state: >
+          {% if not is_state('input_boolean.curve_test_enabled', 'on') %}idle
+          {% elif is_state('input_boolean.curve_test_floor_found', 'on') %}floor found
+          {% else %}stepping{% endif %}
+        attributes:
+          slope: "{{ states('number.vitodens_100_heating_curve_slope') }}"
+          day_of_step: >
+            {% set s = states('input_datetime.curve_test_step_started') %}
+            {{ ((as_timestamp(now()) - as_timestamp(s, 0)) / 86400) | round(1) if s not in ['unknown','unavailable'] else 0 }}
+          coldest_this_step: "{{ states('input_number.curve_test_step_min_outside') }}"
+
+automation:
+  # ---------------------------------------------------------------- step down
+  - id: curve_test_step_down
+    alias: Curve test - step slope down
+    description: >
+      Drops the slope by 0.1 once the current step has held for the configured
+      number of days without a failure. Optimistic on purpose: the revert
+      automation is the safety net, so a step that turns out to be too cold
+      later in the winter corrects itself.
+    trigger:
+      - platform: time
+        at: "12:00:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.curve_test_enabled
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.curve_test_floor_found
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.curve_test_step_failed
+        state: "off"
+      # Descent stays paused until a suspected TRV/mesh fault is cleared by hand.
+      - condition: state
+        entity_id: input_boolean.curve_test_inconclusive
+        state: "off"
+      - condition: template
+        value_template: >
+          {% set s = states('input_datetime.curve_test_step_started') %}
+          {{ s not in ['unknown','unavailable']
+             and (as_timestamp(now()) - as_timestamp(s)) / 86400
+                 >= states('input_number.curve_test_step_days') | float(7) }}
+      - condition: template
+        value_template: >
+          {{ states('number.vitodens_100_heating_curve_slope') | float(1.2) - 0.1
+             >= states('input_number.curve_test_min_slope') | float(0.6) - 0.001 }}
+    action:
+      # Record the step we are leaving as validated, together with how cold it
+      # actually got. A slope that only saw +6 °C has proven very little.
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.curve_test_best_validated_slope
+        data:
+          value: "{{ states('number.vitodens_100_heating_curve_slope') | float(1.2) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.curve_test_best_validated_outside
+        data:
+          value: "{{ states('input_number.curve_test_step_min_outside') | float(30) }}"
+      - variables:
+          new_slope: "{{ (states('number.vitodens_100_heating_curve_slope') | float(1.2) - 0.1) | round(1) }}"
+      - service: number.set_value
+        target:
+          entity_id: number.vitodens_100_heating_curve_slope
+        data:
+          value: "{{ new_slope }}"
+      - service: script.turn_on
+        target:
+          entity_id: script.curve_test_begin_step
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: Heating curve test
+          message: >
+            Slope down to {{ new_slope }}. Previous step held at
+            {{ states('input_number.curve_test_best_validated_slope') }}, coldest
+            {{ states('input_number.curve_test_best_validated_outside') }} °C.
+          data:
+            push:
+              thread-id: curve-test
+
+  # ------------------------------------------------------------------- revert
+  - id: curve_test_revert_on_failure
+    alias: Curve test - revert slope on shortfall
+    description: >
+      Any monitored room sitting below target by more than the tolerance for 90
+      continuous minutes in heating weather means this slope cannot hold the
+      house. Step back up and stop descending. Stays armed after the floor is
+      found, so a February cold snap will also push the curve back up.
+    trigger:
+      - platform: template
+        value_template: >
+          {{ is_state('input_boolean.curve_test_enabled', 'on')
+             and states('sensor.vicare_outside_temperature') | float(99) < 12
+             and states('sensor.curve_test_worst_deficit') | float(0)
+                 > states('input_number.curve_test_tolerance') | float(0.5) }}
+        for: "01:30:00"
+    action:
+      - variables:
+          reverted_to: "{{ (states('number.vitodens_100_heating_curve_slope') | float(0.8) + 0.1) | round(1) }}"
+          failed_at: "{{ states('number.vitodens_100_heating_curve_slope') }}"
+          diagnosis: "{{ states('sensor.curve_test_failure_diagnosis') }}"
+      # Comfort first: raise the curve back regardless of cause, then decide what the
+      # failure actually proved.
+      - service: number.set_value
+        target:
+          entity_id: number.vitodens_100_heating_curve_slope
+        data:
+          value: "{{ reverted_to }}"
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.curve_test_step_failed
+      - choose:
+          # Genuine emitter limit: the valve was calling and the room still fell short.
+          - conditions:
+              - condition: template
+                value_template: "{{ diagnosis == 'curve' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.curve_test_floor_found
+              - service: notify.mobile_app_eeros_iphone_17
+                data:
+                  title: Curve test - floor found
+                  message: >
+                    {{ states('sensor.curve_test_worst_room') }} fell
+                    {{ states('sensor.curve_test_worst_deficit') }} K short at slope
+                    {{ failed_at }} ({{ states('sensor.vicare_outside_temperature') }} °C
+                    outside) WITH the valve calling. Genuine limit. Reverted to
+                    {{ reverted_to }}.
+                    {{ state_attr('sensor.curve_test_failure_diagnosis','detail') }}
+                  data:
+                    push:
+                      thread-id: curve-test
+        # TRV stuck shut or unreachable: proves nothing about the curve. Pause rather
+        # than latch a floor, so a mesh fault can't masquerade as "radiators need 1.2".
+        default:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.curve_test_inconclusive
+          - service: notify.mobile_app_eeros_iphone_17
+            data:
+              title: Curve test - INCONCLUSIVE ({{ diagnosis }})
+              message: >
+                {{ states('sensor.curve_test_worst_room') }} is
+                {{ states('sensor.curve_test_worst_deficit') }} K short at slope
+                {{ failed_at }}, but the valve is not calling / not reachable. This is a
+                TRV or mesh fault, NOT a curve limit. Reverted to {{ reverted_to }};
+                descent paused. Fix the valve, then clear
+                input_boolean.curve_test_inconclusive to resume.
+                {{ state_attr('sensor.curve_test_failure_diagnosis','detail') }}
+              data:
+                push:
+                  thread-id: curve-test
+      - service: script.turn_on
+        target:
+          entity_id: script.curve_test_begin_step
+
+  # ------------------------------------------- track how cold each step got
+  - id: curve_test_track_coldest
+    alias: Curve test - track coldest outside temp this step
+    trigger:
+      - platform: state
+        entity_id: sensor.vicare_outside_temperature
+    condition:
+      - condition: state
+        entity_id: input_boolean.curve_test_enabled
+        state: "on"
+      - condition: template
+        value_template: >
+          {{ states('sensor.vicare_outside_temperature') | float(99)
+             < states('input_number.curve_test_step_min_outside') | float(30) }}
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.curve_test_step_min_outside
+        data:
+          value: "{{ states('sensor.vicare_outside_temperature') | float(30) | round(1) }}"
+
+  # ------------------------------------------------------------ daily digest
+  - id: curve_test_daily_digest
+    alias: Curve test - daily digest
+    trigger:
+      - platform: time
+        at: "20:00:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.curve_test_enabled
+        state: "on"
+    action:
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: Heating curve test
+          message: >
+            Slope {{ states('number.vitodens_100_heating_curve_slope') }},
+            day {{ state_attr('sensor.curve_test_status','day_of_step') }} of
+            {{ states('input_number.curve_test_step_days') | int }}.
+            Worst room {{ states('sensor.curve_test_worst_room') }}
+            ({{ states('sensor.curve_test_worst_deficit') }} K).
+            Coldest this step {{ states('input_number.curve_test_step_min_outside') }} °C.
+            Flow {{ states('sensor.vicare_supply_temperature') }} °C at
+            {{ states('sensor.vicare_outside_temperature') }} °C.
+            Blind zones: {{ states('sensor.curve_test_blind_zones') }}.
+          data:
+            push:
+              thread-id: curve-test
+
+script:
+  curve_test_begin_step:
+    alias: Curve test - begin step
+    sequence:
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.curve_test_step_started
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.curve_test_step_min_outside
+        data:
+          value: 30
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.curve_test_step_failed
+
+  curve_test_start:
+    alias: Curve test - start from current slope
+    sequence:
+      - service: input_number.set_value
+        target: {entity_id: input_number.curve_test_target_temp}
+        data: {value: 21.0}
+      - service: input_number.set_value
+        target: {entity_id: input_number.curve_test_tolerance}
+        data: {value: 0.5}
+      - service: input_number.set_value
+        target: {entity_id: input_number.curve_test_step_days}
+        data: {value: 7}
+      - service: input_number.set_value
+        target: {entity_id: input_number.curve_test_min_slope}
+        data: {value: 0.6}
+      - service: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.curve_test_floor_found
+            - input_boolean.curve_test_step_failed
+            - input_boolean.curve_test_inconclusive
+      - service: script.turn_on
+        target: {entity_id: script.curve_test_begin_step}
+      - service: input_boolean.turn_on
+        target: {entity_id: input_boolean.curve_test_enabled}
+
+  curve_test_abort:
+    alias: Curve test - abort and restore 1.2
+    sequence:
+      - service: input_boolean.turn_off
+        target: {entity_id: input_boolean.curve_test_enabled}
+      - service: number.set_value
+        target: {entity_id: number.vitodens_100_heating_curve_slope}
+        data: {value: 1.2}
