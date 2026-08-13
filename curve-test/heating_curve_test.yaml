@@ -1,13 +1,19 @@
-# Heating curve test — find the lowest Vitodens curve slope the radiators tolerate.
+# Heating curve test — find the lowest Vitodens curve slope the house tolerates.
 #
 # Purpose: a heat pump's COP is set by flow temperature. Radiators sized for a gas
 # boiler are usually oversized enough to run 10-15 K cooler than the installed curve.
-# This steps the slope down and lets the house tell us where the floor is.
+# Steps the slope down (or holds it, in ascend-only mode — see HEATING_CURVE_TEST.md)
+# and lets the house tell us where the floor is.
 #
-# Deliberately does NOT use pi_heating_demand or any TRV attribute: externally-fed
-# Danfoss eTRVs hold a residual 1 % demand regardless of room temperature (see
-# BETTER_THERMOSTAT.md), and the mesh is unreliable. Pass/fail is room temperature
-# from the virtual sensors only, so this survives swapping the TRVs out.
+# Watches BOTH circuits, because they fail differently:
+#   - radiators  (top floor, 5 TRV rooms) -> can the emitters deliver at low flow?
+#   - underfloor (living room + both bathrooms, via the Aquavec shunt) -> is the
+#     boiler holding enough flow temperature for the shunt to mix down from?
+#
+# Deliberately does NOT use pi_heating_demand or any TRV attribute as the pass/fail
+# signal: externally-fed Danfoss eTRVs hold a residual 1 % demand regardless of room
+# temperature (see BETTER_THERMOSTAT.md), and the mesh is unreliable. Pass/fail is
+# room temperature only, so this survives swapping the TRVs out.
 #
 # Install: copy to config/curve-test/ and add under homeassistant: packages:
 #   curve_test: !include curve-test/heating_curve_test.yaml
@@ -36,6 +42,16 @@ input_number:
     icon: mdi:home-thermometer
     # Fixed target rather than reading a TRV/BT setpoint: those move under us and
     # are calibration-shifted. This is the comfort line we are defending.
+  curve_test_bathroom_target:
+    name: Curve test bathroom target temp
+    min: 18
+    max: 26
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:shower
+    # Bathrooms are kept warmer than living rooms and sit on the underfloor circuit,
+    # so they need their own line. They are also the *only* thing the curve drives
+    # while the radiator lockshields are shut.
   curve_test_tolerance:
     name: Curve test allowed deficit
     min: 0.2
@@ -93,9 +109,14 @@ input_text:
 
 template:
   - sensor:
-      # Worst shortfall across the rooms that actually have an external sensor.
-      # Lola's room and Trepihall are excluded: their virtual sensors are
-      # unavailable (no external sensor fitted), so they are blind spots.
+      # Radiator circuit (top floor). Worst shortfall across the rooms currently
+      # reporting.
+      #
+      # Lola's room and Trepihall are absent by circumstance, not design: Lola has
+      # TWO Sonoff TH01s fitted but both batteries are dead, so the weighted virtual
+      # sensor has no inputs. Replace the batteries and they rejoin automatically —
+      # no change needed here. Until then `rooms_reporting` shows 3, not 5, and the
+      # test is validating the curve against three of five radiator rooms.
       - name: Curve test worst deficit
         unique_id: curve_test_worst_deficit
         unit_of_measurement: "K"
@@ -132,6 +153,47 @@ template:
             {% endif %}
           {% endfor %}
           {{ ns.worst }}
+
+      # Underfloor circuit, watched separately from the radiators. A cold bathroom
+      # means the boiler is not holding a high enough tank/flow temperature for the
+      # Aquavec shunt to mix down from — a different failure from "radiators cannot
+      # emit enough", and unambiguous, since no TRV sits in this path.
+      - name: Curve test underfloor deficit
+        unique_id: curve_test_underfloor_deficit
+        unit_of_measurement: "K"
+        state_class: measurement
+        state: >
+          {% set main = states('input_number.curve_test_target_temp') | float(21.0) %}
+          {% set bath = states('input_number.curve_test_bathroom_target') | float(22.0) %}
+          {% set rooms = [
+               ('sensor.th_living_room_temperature', main),
+               ('sensor.th_upstairs_bathroom_temperature_2', bath),
+               ('sensor.tz2000_a476raq2_ts0201_temperature', bath) ] %}
+          {% set ns = namespace(d=-99) %}
+          {% for e, t in rooms %}
+            {% set v = states(e) | float(-999) %}
+            {% if v > -100 and (t - v) > ns.d %}{% set ns.d = t - v %}{% endif %}
+          {% endfor %}
+          {{ ns.d | round(2) if ns.d > -90 else 0 }}
+        attributes:
+          detail: >
+            living {{ states('sensor.th_living_room_temperature') }}°C /
+            bath up {{ states('sensor.th_upstairs_bathroom_temperature_2') }}°C /
+            bath down {{ states('sensor.tz2000_a476raq2_ts0201_temperature') }}°C
+          worst: >
+            {% set main = states('input_number.curve_test_target_temp') | float(21.0) %}
+            {% set bath = states('input_number.curve_test_bathroom_target') | float(22.0) %}
+            {% set ns = namespace(w='none', d=-99) %}
+            {% for e, t, label in [
+                 ('sensor.th_living_room_temperature', main, 'living room'),
+                 ('sensor.th_upstairs_bathroom_temperature_2', bath, 'bath upstairs'),
+                 ('sensor.tz2000_a476raq2_ts0201_temperature', bath, 'bath downstairs') ] %}
+              {% set v = states(e) | float(-999) %}
+              {% if v > -100 and (t - v) > ns.d %}
+                {% set ns.d = t - v %}{% set ns.w = label %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.w }}
 
       # Advisory only — TRV internal temps run warm (radiator in the same box).
       # Surfaced so the two sensorless zones are not completely invisible.
@@ -175,7 +237,9 @@ template:
               {% set ns.trv = trv %}
             {% endif %}
           {% endfor %}
-          {% if ns.worst is none %}no_data
+          {% set uf = states('sensor.curve_test_underfloor_deficit') | float(0) %}
+          {% if uf > tol %}underfloor
+          {% elif ns.worst is none %}no_data
           {% elif ns.deficit <= tol %}ok
           {% elif not has_value(ns.trv) and states[ns.trv] is not defined %}no_diagnosis
           {% else %}
@@ -301,11 +365,22 @@ automation:
       house. Step back up and stop descending. Stays armed after the floor is
       found, so a February cold snap will also push the curve back up.
     trigger:
+      # Radiator rooms — only meaningful in heating weather.
       - platform: template
         value_template: >
           {{ is_state('input_boolean.curve_test_enabled', 'on')
              and states('sensor.vicare_outside_temperature') | float(99) < 12
              and states('sensor.curve_test_worst_deficit') | float(0)
+                 > states('input_number.curve_test_tolerance') | float(0.5) }}
+        for: "01:30:00"
+      # Underfloor — deliberately NOT gated on outside temperature. The bathroom
+      # loops run year-round, and while the radiator lockshields are shut they are
+      # the only load the curve drives, so a summer failure here is real and would
+      # otherwise be invisible.
+      - platform: template
+        value_template: >
+          {{ is_state('input_boolean.curve_test_enabled', 'on')
+             and states('sensor.curve_test_underfloor_deficit') | float(0)
                  > states('input_number.curve_test_tolerance') | float(0.5) }}
         for: "01:30:00"
     action:
@@ -324,6 +399,38 @@ automation:
         target:
           entity_id: input_boolean.curve_test_step_failed
       - choose:
+          # Underfloor/shunt limit. Genuine, but a different finding: the boiler is
+          # not holding enough flow temperature for the shunt to mix down from. Note
+          # this does NOT argue against a heat pump on this circuit — a pump running
+          # W35-40 would serve it happily. It constrains the *boiler* curve only.
+          - conditions:
+              - condition: template
+                value_template: "{{ diagnosis == 'underfloor' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.curve_test_floor_found
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.curve_test_result
+                data:
+                  value: >-
+                    {{ failed_at }} too low for UNDERFLOOR shunt
+                    ({{ state_attr('sensor.curve_test_underfloor_deficit','detail') }})
+                    at {{ states('sensor.vicare_outside_temperature') }}C
+                    -> {{ reverted_to }}
+              - service: notify.mobile_app_eeros_iphone_17
+                data:
+                  title: Curve test - underfloor short
+                  message: >
+                    Underfloor ({{ state_attr('sensor.curve_test_underfloor_deficit','worst') }}) fell {{ states('sensor.curve_test_underfloor_deficit') }} K
+                    short at slope {{ failed_at }} - the boiler is not holding enough
+                    flow for the Aquavec shunt. Reverted to {{ reverted_to }}.
+                    {{ state_attr('sensor.curve_test_underfloor_deficit','detail') }}.
+                    This limits the boiler curve, not heat-pump viability on this circuit.
+                  data:
+                    push:
+                      thread-id: curve-test
           # Genuine emitter limit: the valve was calling and the room still fell short.
           - conditions:
               - condition: template
