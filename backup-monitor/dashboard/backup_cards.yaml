@@ -1,0 +1,116 @@
+# Backup monitor dashboard cards — copy-paste into the network dashboard.
+#
+# Same convention as chores/dashboard/: dashboards do not auto-discover YAML
+# from directories, so these are templates you paste into a card's YAML editor,
+# not something HA loads on its own.
+#
+# Requires backup_monitor.yaml to be loaded first (these reference its
+# template entities).
+
+# ---------------------------------------------------------------------------
+# 1. Uptime strip — the closest built-in equivalent to an Uptime Kuma card.
+#    binary_sensor + device_class problem draws as bands: clear while healthy,
+#    coloured where it broke. A week reads well; 30 days also works.
+# ---------------------------------------------------------------------------
+type: history-graph
+title: Backup uptime
+hours_to_show: 168
+entities:
+  - entity: binary_sensor.backup_media_problem
+    name: Media mirror
+  - entity: binary_sensor.backup_borg_problem
+    name: Borg (precious)
+  - entity: binary_sensor.backup_flash_problem
+    name: Unraid flash
+
+---
+
+# ---------------------------------------------------------------------------
+# 2. Current state — what the strip cannot tell you: when each last succeeded,
+#    and what the last report actually said.
+# ---------------------------------------------------------------------------
+type: entities
+title: Backups
+entities:
+  - type: section
+    label: Last successful run
+  - entity: input_datetime.backup_media_last_ok
+    name: Media mirror
+  - entity: input_datetime.backup_borg_last_ok
+    name: Borg (precious)
+  - entity: input_datetime.backup_flash_last_ok
+    name: Unraid flash
+  - type: section
+    label: Last reported status
+  - entity: input_text.backup_media_status
+    name: Media mirror
+  - entity: input_text.backup_borg_status
+    name: Borg (precious)
+  - entity: input_text.backup_flash_status
+    name: Unraid flash
+  - type: section
+    label: Off-site capacity
+  - entity: sensor.hetzner_box_used
+    name: Box used
+  - entity: input_number.hetzner_box_used_percent
+    name: Box used (%)
+  - entity: input_datetime.hetzner_capacity_last_seen
+    name: Capacity checked
+
+---
+
+# ---------------------------------------------------------------------------
+# 3. Backup size over time — the upgrade decision. statistics-graph (not
+#    history-graph) because it reads HA's long-term statistics and so keeps
+#    working over months, which is the timescale that matters here.
+#
+#    Plotted in TB against the 5 TB ceiling; borg is the fast-growing part
+#    (~240 GB/month deduplicated) while the media mirror moves in steps as
+#    rips land. Watching them separately tells you which one is eating the box.
+# ---------------------------------------------------------------------------
+type: statistics-graph
+title: Off-site backup size
+period: day
+days_to_show: 90
+stat_types:
+  - max
+chart_type: line
+entities:
+  - entity: sensor.hetzner_box_used
+    name: Box total (TB)
+  - entity: sensor.hetzner_media_mirror_size
+    name: Media mirror (TB)
+
+---
+
+# ---------------------------------------------------------------------------
+# 4. Borg growth on its own axis — 315 GB next to a 4 TB line is invisible,
+#    and borg's slope is the one that decides when BX31 is needed.
+# ---------------------------------------------------------------------------
+type: statistics-graph
+title: Borg repo growth
+period: day
+days_to_show: 90
+stat_types:
+  - max
+chart_type: line
+entities:
+  - entity: sensor.hetzner_borg_repo_size
+    name: Borg repo (GB)
+
+---
+
+# ---------------------------------------------------------------------------
+# 5. Optional: fill percentage with the alert thresholds visible as a gauge.
+#    85 = plan the BX31 upgrade, 92 = do it now.
+# ---------------------------------------------------------------------------
+type: gauge
+entity: input_number.hetzner_box_used_percent
+name: Hetzner box
+unit: "%"
+min: 0
+max: 100
+severity:
+  green: 0
+  yellow: 85
+  red: 92

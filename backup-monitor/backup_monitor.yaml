@@ -57,6 +57,23 @@ input_number:
     step: 0.1
     unit_of_measurement: "%"
     mode: box
+  # Absolute sizes as well as the percentage: "80%" does not graph as backup
+  # size, and after a BX31 upgrade the percentage would drop by half while the
+  # data kept growing — the TB line stays continuous across that.
+  hetzner_box_used_tb:
+    name: Hetzner box used TB
+    min: 0
+    max: 50
+    step: 0.001
+    unit_of_measurement: TB
+    mode: box
+  hetzner_borg_repo_gb:
+    name: Hetzner borg repo GB
+    min: 0
+    max: 50000
+    step: 0.01
+    unit_of_measurement: GB
+    mode: box
 
 input_datetime:
   # Capacity check has its own heartbeat, so a monitor that quietly stops
@@ -89,6 +106,69 @@ input_datetime:
     name: Backup flash last ok
     has_date: true
     has_time: true
+
+# ---------------------------------------------------------------------------
+# Template entities exist for the dashboard, and for one property input_* lack:
+# long-term statistics. HA keeps statistics for sensors carrying a state_class,
+# so these are what make a months-long fill curve plottable — the input_numbers
+# are only storage the webhook can write to.
+# ---------------------------------------------------------------------------
+template:
+  - sensor:
+      - name: Hetzner box used
+        unique_id: hetzner_box_used_size
+        state: "{{ states('input_number.hetzner_box_used_tb') | float(0) }}"
+        unit_of_measurement: TB
+        device_class: data_size
+        state_class: measurement
+
+      - name: Hetzner borg repo
+        unique_id: hetzner_borg_repo_size
+        state: "{{ states('input_number.hetzner_borg_repo_gb') | float(0) }}"
+        unit_of_measurement: GB
+        device_class: data_size
+        state_class: measurement
+
+      # Derived rather than measured: walking the media mirror with du means
+      # 100k+ files over SSH, and (box used - borg repo) is exact anyway.
+      - name: Hetzner media mirror
+        unique_id: hetzner_media_mirror_size
+        state: >
+          {{ ((states('input_number.hetzner_box_used_tb') | float(0))
+              - (states('input_number.hetzner_borg_repo_gb') | float(0) / 1024)) | round(3) }}
+        unit_of_measurement: TB
+        device_class: data_size
+        state_class: measurement
+
+  - binary_sensor:
+      # Uptime strips. input_text renders as words; a binary_sensor with
+      # device_class problem draws as bands in a history graph — green while
+      # healthy, red where it broke — which is the shape you actually read.
+      # "Healthy" deliberately means both status ok AND a success within 26 h,
+      # so a job frozen on a stale ok cannot show green forever.
+      - name: Backup media problem
+        unique_id: backup_media_problem
+        device_class: problem
+        state: >
+          {{ not (states('input_text.backup_media_status') == 'ok'
+                  and (now().timestamp()
+                       - (state_attr('input_datetime.backup_media_last_ok', 'timestamp') | float(0))) < 93600) }}
+
+      - name: Backup borg problem
+        unique_id: backup_borg_problem
+        device_class: problem
+        state: >
+          {{ not (states('input_text.backup_borg_status') == 'ok'
+                  and (now().timestamp()
+                       - (state_attr('input_datetime.backup_borg_last_ok', 'timestamp') | float(0))) < 93600) }}
+
+      - name: Backup flash problem
+        unique_id: backup_flash_problem
+        device_class: problem
+        state: >
+          {{ not (states('input_text.backup_flash_status') == 'ok'
+                  and (now().timestamp()
+                       - (state_attr('input_datetime.backup_flash_last_ok', 'timestamp') | float(0))) < 93600) }}
 
 automation:
   - id: backup_job_report
@@ -210,6 +290,16 @@ automation:
           entity_id: input_number.hetzner_box_used_percent
         data:
           value: "{{ trigger.json.used_percent | float(0) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hetzner_box_used_tb
+        data:
+          value: "{{ trigger.json.used_tb | float(0) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hetzner_borg_repo_gb
+        data:
+          value: "{{ trigger.json.borg_gb | float(0) }}"
       - service: input_datetime.set_datetime
         target:
           entity_id: input_datetime.hetzner_capacity_last_seen
