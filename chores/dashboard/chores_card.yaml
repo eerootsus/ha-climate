@@ -1,0 +1,21 @@
+type: entities
+title: Toimkonnad
+entities:
+  - entity: sensor.chore_laundry
+    name: Pesutoimkond
+  - entity: sensor.chore_trash
+    name: Prügitoimkond
+  - entity: sensor.chore_bathroom_1
+    name: Tualett 1. korrus
+  - entity: sensor.chore_bathroom_basement
+    name: Tualett sokkel
+  - entity: sensor.chore_plants
+    name: Floratoimkond
+  - entity: sensor.chore_cat
+    name: Kassitoimkond
+  - entity: sensor.chore_dust_1
+    name: Tolm 1. korrus
+  - entity: sensor.chore_dust_basement
+    name: Tolm sokkel
+  - entity: sensor.chore_kitchen
+    name: Köögitoimkond

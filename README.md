@@ -10,6 +10,11 @@ housekeeping packages that have nowhere better to live:
   safety devices.
 - **`backup-monitor/`** — push alerts for the off-site backups running on
   `alpine-docker`. The backup jobs themselves live in the `unraid` repo.
+- **`chores/`** — household chore rotation, notifications and dashboard cards
+  (see `chores/README.md`). Merged in from the former `ha-chores` repo with
+  its history intact.
+- **`themes/`** — HA themes; currently the e-ink serif theme the chores
+  dashboard is built around.
 
 ## Climate
 

@@ -1,0 +1,87 @@
+# Weekly random chore distribution - Monday at 00:01
+# Randomly assigns 9 chores so each person gets exactly 3
+# Uses input_datetime.chore_last_rotation to prevent duplicate rotations
+
+automation:
+  - id: chore_weekly_rotation
+    alias: "Chores: Weekly Rotation"
+    trigger:
+      - platform: time
+        at: "00:01:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+      # Only rotate if last rotation was more than 6 days ago
+      - condition: template
+        value_template: >
+          {% set last = states('input_datetime.chore_last_rotation') %}
+          {% if last in ['unknown', 'unavailable', ''] %}
+            true
+          {% else %}
+            {{ (now().date() - strptime(last, '%Y-%m-%d').date()).days >= 6 }}
+          {% endif %}
+    action:
+      # Assign each chore to a random person (Kätlyn or Lola), no balancing
+      - repeat:
+          for_each:
+            - chore_laundry
+            - chore_trash
+            - chore_bathroom_1
+            - chore_bathroom_basement
+            - chore_plants
+            - chore_cat
+            - chore_dust_1
+            - chore_dust_basement
+            - chore_kitchen
+          sequence:
+            - service: input_select.select_option
+              target:
+                entity_id: "input_select.{{ repeat.item }}"
+              data:
+                option: "{{ ['person.katlyn_otsus', 'person.lola_laur'] | random }}"
+
+      # Wait for state changes to propagate before Ada selection
+      - delay:
+          seconds: 1
+
+      # Pick random chore for Ada from Kätlyn's assignments
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.ada_helper_katlyn
+        data:
+          option: >
+            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom_1',
+                             'chore_bathroom_basement', 'chore_plants', 'chore_cat',
+                             'chore_dust_1', 'chore_dust_basement', 'chore_kitchen'] %}
+            {% set ns = namespace(list=[]) %}
+            {% for chore in chores %}
+              {% if states('input_select.' ~ chore) == 'person.katlyn_otsus' %}
+                {% set ns.list = ns.list + [chore] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.list | random }}
+
+      # Pick random chore for Ada from Lola's assignments
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.ada_helper_lola
+        data:
+          option: >
+            {% set chores = ['chore_laundry', 'chore_trash', 'chore_bathroom_1',
+                             'chore_bathroom_basement', 'chore_plants', 'chore_cat',
+                             'chore_dust_1', 'chore_dust_basement', 'chore_kitchen'] %}
+            {% set ns = namespace(list=[]) %}
+            {% for chore in chores %}
+              {% if states('input_select.' ~ chore) == 'person.lola_laur' %}
+                {% set ns.list = ns.list + [chore] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.list | random }}
+
+      # Record rotation date
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.chore_last_rotation
+        data:
+          date: "{{ now().strftime('%Y-%m-%d') }}"

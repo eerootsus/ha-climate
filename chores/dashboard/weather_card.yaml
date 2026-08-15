@@ -1,0 +1,9 @@
+show_current: true
+show_forecast: true
+type: weather-forecast
+entity: weather.forecast_kodu
+forecast_type: hourly
+forecast_slots: 6
+secondary_info_attribute: uv_index
+layout_options:
+  grid_rows: 4

@@ -1,0 +1,107 @@
+eink-serif:
+  modes:
+    light:
+
+      # Serif font stack (new HA 2025.5+ variables)
+      ha-font-family-body: "'Georgia', 'Times New Roman', 'Palatino Linotype', serif"
+      ha-font-family-heading: "'Georgia', 'Times New Roman', 'Palatino Linotype', serif"
+      ha-font-family-longform: "'Georgia', 'Times New Roman', 'Palatino Linotype', serif"
+      ha-font-family-code: "'Courier New', monospace"
+
+      # Font size scale multiplier (1.0 = default, 1.15 = 15% larger)
+      ha-font-size-scale: "1.2"
+
+      # Individual font sizes
+      ha-font-size-2xs: "11px"
+      ha-font-size-xs: "13px"
+      ha-font-size-s: "15px"
+      ha-font-size-m: "17px"
+      ha-font-size-l: "20px"
+      ha-font-size-xl: "24px"
+      ha-font-size-2xl: "30px"
+      ha-font-size-3xl: "36px"
+      ha-font-size-4xl: "44px"
+
+      # Card header
+      ha-card-header-font-size: "20px"
+
+      # Remove card borders, padding, and margins
+      ha-card-border-width: "0px"
+      ha-card-border-radius: "0px"
+      ha-card-box-shadow: "none"
+      ha-card-padding: "0px"
+
+      # Grid margins
+      ha-section-grid-margin: "0px"
+
+      # Compact spacing
+      entities-card-row-gap: "0"
+      ha-view-sections-column-gap: "16px"
+      ha-section-grid-row-gap: "0px"
+      ha-section-grid-gap: "0px"
+
+
+
+      # Hide toolbar border and active tab indicator
+      app-header-border-bottom: "none"
+      paper-tabs-selection-bar-color: "transparent"
+
+      # E-ink optimized colors (high contrast grayscale)
+      state-icon-color: "#000000"
+      state-icon-active-color: "#000000"
+      primary-color: "#000000"
+      primary-background-color: "#FFFFFF"
+      secondary-background-color: "#FFFFFF"
+      card-background-color: "#FFFFFF"
+      primary-text-color: "#000000"
+      secondary-text-color: "#333333"
+      disabled-text-color: "#666666"
+      divider-color: "#CCCCCC"
+
+  # Card-mod theme overrides (must be at theme root, not under modes)
+  card-mod-theme: eink-serif
+  card-mod-card: |
+    /* Weather card */
+    .temp-attribute .temp {
+      margin-right: 36px !important;
+      line-height: 32px !important;
+      font-weight: 700;
+    }
+    .temp-attribute .temp span {
+      font-weight: 400;
+    }
+    .name-state .name {
+      display: none;
+    }
+    .name-state .state {
+      font-size: 18px;
+    }
+    .temp-attribute .attribute {
+      margin-top: 8px;
+    }
+    .forecast .forecast-image-icon {
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    /* Entities card (chores) */
+    .card-header {
+      font-weight: 700;
+    }
+    #states {
+      font-size: 18px;
+    }
+    /* Entity card (dinner, Ada care) */
+    .header .name {
+      font-size: 16px;
+    }
+    .info .value {
+      font-size: 36px;
+      font-weight: 500;
+      margin-top: -4px;
+    }
+  card-mod-row-yaml: |
+    hui-generic-entity-row:
+      $: |
+        .info.text-content {
+          padding-left: 0 !important;
+        }
