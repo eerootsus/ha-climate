@@ -156,3 +156,59 @@ severity:
   green: 0
   yellow: 85
   red: 92
+
+---
+
+# ---------------------------------------------------------------------------
+# 6. VM disk — the machine everything actually runs on. Gauge severity is set
+#    at the alert thresholds (80 plan / 90 act), which are low on purpose:
+#    Jellyfin needs 2 GiB free to start, and on a 94 GB disk that is ~98%, so
+#    by the time "nearly full" looks alarming a service has already refused
+#    to boot. That is exactly what happened on 2026-08-15.
+# ---------------------------------------------------------------------------
+type: gauge
+entity: input_number.vm_disk_used_percent
+name: VM disk
+unit: "%"
+min: 0
+max: 100
+severity:
+  green: 0
+  yellow: 80
+  red: 90
+
+---
+
+# ---------------------------------------------------------------------------
+# 7. VM disk trend + the weekly image-update count, together: the first says
+#    whether the disk is filling, the second is the usual reason it does
+#    (image pulls and build layers).
+# ---------------------------------------------------------------------------
+type: entities
+title: VM host
+entities:
+  - entity: input_number.vm_disk_free_gb
+    name: Disk free
+  - entity: input_number.vm_disk_used_percent
+    name: Disk used
+  - entity: input_datetime.vm_disk_last_seen
+    name: Disk checked
+  - type: section
+    label: Container images
+  - entity: input_number.container_updates_count
+    name: Updates available
+
+---
+
+# ---------------------------------------------------------------------------
+# 8. Disk fill over time. history-graph rather than statistics-graph: this is
+#    a plain input_number with no state_class, so it has no long-term
+#    statistics — 30 days of recorder history is what is available, and is
+#    enough to see a trend before it becomes an outage.
+# ---------------------------------------------------------------------------
+type: history-graph
+title: VM disk used (%)
+hours_to_show: 720
+entities:
+  - entity: input_number.vm_disk_used_percent
+    name: Root filesystem
