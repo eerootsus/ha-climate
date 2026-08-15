@@ -74,12 +74,41 @@ input_number:
     step: 0.01
     unit_of_measurement: GB
     mode: box
+  # The VM's own root disk. Added 2026-08-15 after Jellyfin crash-looped for
+  # hours at 96% full — it has a hard 2 GiB free-space precondition and simply
+  # refuses to start below it, so the failure was total rather than gradual and
+  # nothing announced it. The off-site box had three layers of monitoring while
+  # the disk every service actually runs on had none.
+  vm_disk_used_percent:
+    name: VM disk used
+    min: 0
+    max: 100
+    step: 0.1
+    unit_of_measurement: "%"
+    mode: box
+  vm_disk_free_gb:
+    name: VM disk free GB
+    min: 0
+    max: 1000
+    step: 0.1
+    unit_of_measurement: GB
+    mode: box
+  container_updates_count:
+    name: Container updates available
+    min: 0
+    max: 100
+    step: 1
+    mode: box
 
 input_datetime:
   # Capacity check has its own heartbeat, so a monitor that quietly stops
   # reporting doesn't leave a reassuring stale number on the dashboard.
   hetzner_capacity_last_seen:
     name: Hetzner capacity last seen
+    has_date: true
+    has_time: true
+  vm_disk_last_seen:
+    name: VM disk last seen
     has_date: true
     has_time: true
   backup_media_last_seen:
@@ -338,6 +367,96 @@ automation:
               interruption-level: time-sensitive
             tag: hetzner-capacity
 
+  - id: vm_disk_report
+    alias: Backup - VM disk report
+    description: >
+      Daily root-filesystem reading from alpine-docker. Its own webhook: this
+      is a measurement of the machine, not a backup run, so it has no business
+      in the job report's last_seen/last_ok machinery.
+    mode: queued
+    max: 5
+    trigger:
+      - platform: webhook
+        webhook_id: c784e4e3c3089a57900e3d915826e496dc1431d994a9cab8
+        local_only: true
+        allowed_methods: [POST]
+    action:
+      - service: input_number.set_value
+        target: {entity_id: input_number.vm_disk_used_percent}
+        data: {value: "{{ trigger.json.used_percent | float(0) }}"}
+      - service: input_number.set_value
+        target: {entity_id: input_number.vm_disk_free_gb}
+        data: {value: "{{ trigger.json.free_gb | float(0) }}"}
+      - service: input_datetime.set_datetime
+        target: {entity_id: input_datetime.vm_disk_last_seen}
+        data: {timestamp: "{{ now().timestamp() }}"}
+
+  - id: vm_disk_warn
+    alias: Backup - VM disk filling up
+    description: >
+      Thresholds are set low deliberately. Jellyfin needs 2 GiB free to start
+      at all, and on a ~94 GB disk that is ~98%, so by the time "nearly full"
+      looks alarming a service has already refused to boot. 80 gives room to
+      investigate, 90 means act now.
+    mode: single
+    trigger:
+      - platform: numeric_state
+        entity_id: input_number.vm_disk_used_percent
+        above: 80
+        id: plan
+      - platform: numeric_state
+        entity_id: input_number.vm_disk_used_percent
+        above: 90
+        id: act
+    action:
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: >
+            VM disk {{ states('input_number.vm_disk_used_percent') }}% full
+          message: >
+            {{ states('input_number.vm_disk_free_gb') }} GB free.
+            {% if trigger.id == 'act' %}
+              Act now — services start failing near the top (Jellyfin needs 2 GiB
+              free to boot). Check `docker system df`; build cache is the usual
+              culprit.
+            {% else %}
+              Worth a look: `docker builder prune -af` reclaims the miniklubi
+              build cache, which is what filled it in August 2026.
+            {% endif %}
+          data:
+            push: {interruption-level: time-sensitive}
+            tag: vm-disk
+
+  - id: container_updates_report
+    alias: Backup - container image updates
+    description: >
+      Weekly skopeo check from the VM, moved off mail 2026-08-15 — mail left via
+      the DMS container on the same VM being reported on. Silent when nothing
+      needs updating, so it stays a signal; the full per-container report stays
+      on the VM at /var/log/container-updates.log.
+    mode: single
+    trigger:
+      - platform: webhook
+        webhook_id: 18cf870fa4b27f7aaca249809eb5453082a294aa450bc892
+        local_only: true
+        allowed_methods: [POST]
+    action:
+      - service: input_number.set_value
+        target: {entity_id: input_number.container_updates_count}
+        data: {value: "{{ trigger.json.count | int(0) }}"}
+      - condition: template
+        value_template: "{{ (trigger.json.count | int(0)) > 0 }}"
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: >
+            {{ trigger.json.count }} of {{ trigger.json.total }} containers have updates
+          message: "{{ trigger.json.names }}"
+          data:
+            # Not urgent — updates can wait for a convenient evening, and
+            # marking them time-sensitive would devalue the alerts that are.
+            push: {interruption-level: passive}
+            tag: container-updates
+
   - id: backup_daily_recap
     alias: Backup - daily recap of anything unhealthy
     description: >
@@ -373,6 +492,18 @@ automation:
             {% set cap_age = (now().timestamp() - cap_seen) / 3600 %}
             {% if cap_age > 26 %}
               {% set ns.p = ns.p + [ 'capacity check silent for ' ~ (cap_age | round(0)) ~ ' h' ] %}
+            {% endif %}
+            {# The VM's own disk rides along for the same reason as capacity:
+               the crossing alert fires once, this keeps reminding. #}
+            {% set vm_pct = states('input_number.vm_disk_used_percent') | float(0) %}
+            {% if vm_pct >= 80 %}
+              {% set ns.p = ns.p + [ 'VM disk ' ~ vm_pct ~ '% full, '
+                                     ~ states('input_number.vm_disk_free_gb') ~ ' GB free' ] %}
+            {% endif %}
+            {% set vm_seen = state_attr('input_datetime.vm_disk_last_seen', 'timestamp') | float(0) %}
+            {% set vm_age = (now().timestamp() - vm_seen) / 3600 %}
+            {% if vm_age > 26 %}
+              {% set ns.p = ns.p + [ 'VM disk check silent for ' ~ (vm_age | round(0)) ~ ' h' ] %}
             {% endif %}
             {{ ns.p | join('; ') }}
       - condition: template
