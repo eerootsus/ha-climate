@@ -29,6 +29,22 @@
 # Install: copy to config/backup-monitor/ and add under homeassistant: packages:
 #   backup_monitor: !include backup-monitor/backup_monitor.yaml
 
+input_text:
+  # Current state per job, so a failure is visible in HA rather than existing
+  # only as a push that has already gone. A failing job keeps refreshing
+  # last_seen (it is alive, it is just broken), so without this the only
+  # trace of a failure between nightly runs is a notification you may have
+  # dismissed.
+  backup_media_status:
+    name: Backup media status
+    max: 20
+  backup_borg_status:
+    name: Backup borg status
+    max: 20
+  backup_flash_status:
+    name: Backup flash status
+    max: 20
+
 input_datetime:
   backup_media_last_seen:
     name: Backup media last seen
@@ -81,6 +97,12 @@ automation:
           entity_id: "input_datetime.backup_{{ trigger.json.job }}_last_seen"
         data:
           timestamp: "{{ now().timestamp() }}"
+
+      - service: input_text.set_value
+        target:
+          entity_id: "input_text.backup_{{ trigger.json.job }}_status"
+        data:
+          value: "{{ trigger.json.status }}"
 
       - choose:
           - conditions: "{{ trigger.json.status == 'ok' }}"
@@ -148,3 +170,40 @@ automation:
                   push:
                     interruption-level: time-sensitive
                   tag: "backup-silent-{{ repeat.item }}"
+
+  - id: backup_daily_recap
+    alias: Backup - daily recap of anything unhealthy
+    description: >
+      Safety net for a push that was missed, silenced or swiped away. A failing
+      job keeps refreshing last_seen, so the dead-man switch never sees it and
+      the only other signal is the nightly failure push. This asks a blunter
+      question once a morning: has every job actually *succeeded* since
+      yesterday? Silent when all three are healthy, so it stays a signal rather
+      than furniture.
+    mode: single
+    trigger:
+      - platform: time
+        at: "09:00:00"
+    action:
+      - variables:
+          problems: >
+            {% set ns = namespace(p=[]) %}
+            {% for j in ['media', 'borg', 'flash'] %}
+              {% set ok = state_attr('input_datetime.backup_' ~ j ~ '_last_ok', 'timestamp') | float(0) %}
+              {% set age = (now().timestamp() - ok) / 3600 %}
+              {% if age > 26 %}
+                {% set ns.p = ns.p + [ j ~ ' — ' ~ states('input_text.backup_' ~ j ~ '_status')
+                                         ~ ', last good run ' ~ (age | round(0)) ~ ' h ago' ] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.p | join('; ') }}
+      - condition: template
+        value_template: "{{ problems | length > 0 }}"
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: Backups need attention
+          message: "{{ problems }}"
+          data:
+            push:
+              interruption-level: time-sensitive
+            tag: backup-recap
