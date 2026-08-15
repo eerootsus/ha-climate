@@ -1,0 +1,146 @@
+# Backup monitor — alerts for the off-site backups running on alpine-docker.
+#
+# Not climate-related, but it lives here for the same reason battery-monitor
+# does: this is the de facto HA config repo. The backup jobs themselves and
+# their rationale are documented in the `unraid` repo (notes/offsite-backup.md).
+#
+# Why the alerting lives in HA at all: the natural build — a watchdog beside the
+# backups, mailing on failure — routes the alarm through `mailserver`, a
+# container on the very VM being watched, so a VM failure takes the alarm down
+# with it. Even Uptime Kuma on the Linode only moves the *check*, not the
+# notification. HA is a separate machine and the companion app pushes over
+# Apple/Google infrastructure, so no part of the delivery path is ours.
+# Residual shared fate: HA is at the same site, so a power/ISP outage silences
+# it — acceptable, since the backups aren't running then either.
+#
+# The VM reports via webhook rather than the REST API. The webhook id
+# authorises exactly one automation, whereas a long-lived token on an
+# internet-facing VM would grant full control of the house.
+#
+# /root/bin/notify-ha.sh on the VM reports three states:
+#   ok      — run finished cleanly
+#   fail    — run broke; alert immediately, with detail
+#   running — a previous run is still going. The media sync's pidfile guard
+#             no-ops during a multi-day transfer (the initial seed took four
+#             days), so without this a perfectly healthy long sync would page
+#             every night — and false alarms are how you learn to swipe away
+#             the real one.
+#
+# Install: copy to config/backup-monitor/ and add under homeassistant: packages:
+#   backup_monitor: !include backup-monitor/backup_monitor.yaml
+
+input_datetime:
+  backup_media_last_seen:
+    name: Backup media last seen
+    has_date: true
+    has_time: true
+  backup_media_last_ok:
+    name: Backup media last ok
+    has_date: true
+    has_time: true
+  backup_borg_last_seen:
+    name: Backup borg last seen
+    has_date: true
+    has_time: true
+  backup_borg_last_ok:
+    name: Backup borg last ok
+    has_date: true
+    has_time: true
+  backup_flash_last_seen:
+    name: Backup flash last seen
+    has_date: true
+    has_time: true
+  backup_flash_last_ok:
+    name: Backup flash last ok
+    has_date: true
+    has_time: true
+
+automation:
+  - id: backup_job_report
+    alias: Backup - report from alpine-docker
+    description: >
+      Receives every backup run's outcome from the VM. Any report at all
+      refreshes last_seen; only a clean run refreshes last_ok. Those are
+      deliberately separate, because "nothing ran" and "runs but never
+      finishes" are different failures and want different messages.
+    mode: queued
+    max: 10
+    trigger:
+      - platform: webhook
+        webhook_id: 23359b06d16b5153bfe51873215b788cb9cb50b76ca5e3c8
+        local_only: true
+        allowed_methods: [POST]
+    condition:
+      # Ignore unexpected job names rather than failing on a templated
+      # entity_id that doesn't resolve.
+      - condition: template
+        value_template: "{{ trigger.json.job in ['media', 'borg', 'flash'] }}"
+    action:
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: "input_datetime.backup_{{ trigger.json.job }}_last_seen"
+        data:
+          timestamp: "{{ now().timestamp() }}"
+
+      - choose:
+          - conditions: "{{ trigger.json.status == 'ok' }}"
+            sequence:
+              - service: input_datetime.set_datetime
+                target:
+                  entity_id: "input_datetime.backup_{{ trigger.json.job }}_last_ok"
+                data:
+                  timestamp: "{{ now().timestamp() }}"
+
+          - conditions: "{{ trigger.json.status == 'fail' }}"
+            sequence:
+              - service: notify.mobile_app_eeros_iphone_17
+                data:
+                  title: "Backup failed: {{ trigger.json.job }}"
+                  message: "{{ trigger.json.detail | default('no detail reported', true) }}"
+                  data:
+                    push:
+                      interruption-level: time-sensitive
+                    # Same tag replaces the previous alert instead of stacking
+                    # three nights of identical failures on the lock screen.
+                    tag: "backup-{{ trigger.json.job }}"
+        # 'running' falls through deliberately: last_seen is already updated,
+        # which is the entire purpose of that state.
+
+  - id: backup_dead_man
+    alias: Backup - dead-man switch
+    description: >
+      Notices silence, which is the failure mode a report-on-failure design
+      cannot see: cron never fired, the VM is down, the script was deleted.
+      A backup that stops reporting looks exactly like one that is fine.
+    mode: single
+    trigger:
+      - platform: time_pattern
+        hours: "/1"
+    action:
+      - repeat:
+          for_each: ["media", "borg", "flash"]
+          sequence:
+            - variables:
+                seen_entity: "input_datetime.backup_{{ repeat.item }}_last_seen"
+                ok_entity: "input_datetime.backup_{{ repeat.item }}_last_ok"
+                # float(0) makes a never-set helper read as infinitely old, so a
+                # job that has never once reported is caught rather than skipped.
+                seen_age: >
+                  {{ (now().timestamp() - (state_attr(seen_entity, 'timestamp') | float(0))) / 3600 }}
+                ok_age: >
+                  {{ (now().timestamp() - (state_attr(ok_entity, 'timestamp') | float(0))) / 3600 }}
+            - condition: template
+              value_template: "{{ seen_age | float > 26 or ok_age | float > 168 }}"
+            - service: notify.mobile_app_eeros_iphone_17
+              data:
+                title: "Backup silent: {{ repeat.item }}"
+                message: >
+                  {% if seen_age | float > 26 %}
+                    No report in {{ seen_age | float | round(0) }} h — check cron, the VM, or the network.
+                  {% else %}
+                    Still reporting, but no successful run in {{ (ok_age | float / 24) | round(1) }} days.
+                  {% endif %}
+                data:
+                  push:
+                    interruption-level: time-sensitive
+                  tag: "backup-silent-{{ repeat.item }}"
