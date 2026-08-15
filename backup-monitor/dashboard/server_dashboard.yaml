@@ -1,0 +1,347 @@
+# Server dashboard — HA dashboard "Server" at /home-server
+#
+# Created 2026-08-15. Storage-mode (UI-managed) dashboard, pushed via the
+# websocket API; this file is the readable record of what is there, since HA
+# keeps the live copy in .storage where it is neither reviewable nor diffable.
+#
+# Note HA requires a hyphen in dashboard url_paths, hence `home-server`.
+#
+# Views:
+#   Overview   — internet + the three backup uptime strips, then the four
+#                numbers that matter: array free, VM disk, Hetzner box, updates
+#   Backups    — the strips again with detail: last run, last status, off-site
+#                size and borg growth
+#   Unraid     — array free gauge, entities, 30-day trend, flash backup strip
+#   VM         — VM disk gauge, host entities, 30-day trend, image updates
+#   Batteries  — the battery-state card, moved off the Ülevaade dashboard
+#
+# The array gauge severity is deliberately inverted (red 0 / yellow 150 /
+# green 400) because it shows FREE GB — low is bad, unlike every other gauge
+# here. See backup_monitor.yaml for why free space beats percent on a 4.5 TB
+# array.
+views:
+- title: Overview
+  path: overview
+  icon: mdi:view-dashboard
+  type: sections
+  max_columns: 4
+  sections:
+  - type: grid
+    cards:
+    - type: custom:uptime-card
+      title_template: Internet access
+      entity: binary_sensor.8_8_8_8
+      hours_to_show: 72
+      title_adaptive_color: false
+      status_adaptive_color: true
+      icon: mdi:web
+      update_interval: 30
+      severity: 10
+      icon_adaptive_color: false
+      tooltip_adaptive_color: true
+      alias:
+        ok: Connected
+        ko: Disconnected
+    - type: custom:uptime-card
+      title_template: Media mirror
+      entity: binary_sensor.backup_media_healthy
+      hours_to_show: 168
+      icon: mdi:filmstrip
+      severity: 10
+      update_interval: 300
+      title_adaptive_color: false
+      status_adaptive_color: true
+      icon_adaptive_color: false
+      tooltip_adaptive_color: true
+      alias:
+        ok: Backed up
+        ko: Failing
+    - type: custom:uptime-card
+      title_template: Borg (precious)
+      entity: binary_sensor.backup_borg_healthy
+      hours_to_show: 168
+      icon: mdi:shield-lock
+      severity: 10
+      update_interval: 300
+      title_adaptive_color: false
+      status_adaptive_color: true
+      icon_adaptive_color: false
+      tooltip_adaptive_color: true
+      alias:
+        ok: Backed up
+        ko: Failing
+    - type: custom:uptime-card
+      title_template: Unraid flash
+      entity: binary_sensor.backup_flash_healthy
+      hours_to_show: 168
+      icon: mdi:usb-flash-drive
+      severity: 10
+      update_interval: 300
+      title_adaptive_color: false
+      status_adaptive_color: true
+      icon_adaptive_color: false
+      tooltip_adaptive_color: true
+      alias:
+        ok: Backed up
+        ko: Failing
+  - type: grid
+    cards:
+    - type: gauge
+      entity: input_number.array_free_gb
+      name: Array free
+      unit: GB
+      min: 0
+      max: 4500
+      severity:
+        red: 0
+        yellow: 150
+        green: 400
+    - type: gauge
+      entity: input_number.vm_disk_used_percent
+      name: VM disk
+      unit: '%'
+      min: 0
+      max: 100
+      severity:
+        green: 0
+        yellow: 80
+        red: 90
+    - type: gauge
+      entity: input_number.hetzner_box_used_percent
+      name: Hetzner box
+      unit: '%'
+      min: 0
+      max: 100
+      severity:
+        green: 0
+        yellow: 85
+        red: 92
+    - type: entities
+      title: Container images
+      entities:
+      - entity: input_number.container_updates_count
+        name: Updates available
+- title: Backups
+  path: backups
+  icon: mdi:backup-restore
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:uptime-card
+      title_template: Media mirror
+      entity: binary_sensor.backup_media_healthy
+      hours_to_show: 168
+      icon: mdi:filmstrip
+      severity: 10
+      update_interval: 300
+      title_adaptive_color: false
+      status_adaptive_color: true
+      icon_adaptive_color: false
+      tooltip_adaptive_color: true
+      alias:
+        ok: Backed up
+        ko: Failing
+    - type: custom:uptime-card
+      title_template: Borg (precious)
+      entity: binary_sensor.backup_borg_healthy
+      hours_to_show: 168
+      icon: mdi:shield-lock
+      severity: 10
+      update_interval: 300
+      title_adaptive_color: false
+      status_adaptive_color: true
+      icon_adaptive_color: false
+      tooltip_adaptive_color: true
+      alias:
+        ok: Backed up
+        ko: Failing
+    - type: custom:uptime-card
+      title_template: Unraid flash
+      entity: binary_sensor.backup_flash_healthy
+      hours_to_show: 168
+      icon: mdi:usb-flash-drive
+      severity: 10
+      update_interval: 300
+      title_adaptive_color: false
+      status_adaptive_color: true
+      icon_adaptive_color: false
+      tooltip_adaptive_color: true
+      alias:
+        ok: Backed up
+        ko: Failing
+    - type: entities
+      title: Backups
+      entities:
+      - type: section
+        label: Last successful run
+      - entity: input_datetime.backup_media_last_ok
+        name: Media mirror
+      - entity: input_datetime.backup_borg_last_ok
+        name: Borg (precious)
+      - entity: input_datetime.backup_flash_last_ok
+        name: Unraid flash
+      - type: section
+        label: Last reported status
+      - entity: input_text.backup_media_status
+        name: Media mirror
+      - entity: input_text.backup_borg_status
+        name: Borg (precious)
+      - entity: input_text.backup_flash_status
+        name: Unraid flash
+      - type: section
+        label: Off-site capacity
+      - entity: sensor.hetzner_box_used
+        name: Box used
+      - entity: input_number.hetzner_box_used_percent
+        name: Box used (%)
+      - entity: input_datetime.hetzner_capacity_last_seen
+        name: Capacity checked
+  - type: grid
+    cards:
+    - type: gauge
+      entity: input_number.hetzner_box_used_percent
+      name: Hetzner box
+      unit: '%'
+      min: 0
+      max: 100
+      severity:
+        green: 0
+        yellow: 85
+        red: 92
+    - type: statistics-graph
+      title: Off-site backup size
+      period: day
+      days_to_show: 90
+      stat_types:
+      - max
+      chart_type: line
+      entities:
+      - entity: sensor.hetzner_box_used
+        name: Box total (TB)
+      - entity: sensor.hetzner_media_mirror
+        name: Media mirror (TB)
+    - type: statistics-graph
+      title: Borg repo growth
+      period: day
+      days_to_show: 90
+      stat_types:
+      - max
+      chart_type: line
+      entities:
+      - entity: sensor.hetzner_borg_repo
+        name: Borg repo (GB)
+- title: Unraid
+  path: unraid
+  icon: mdi:nas
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: gauge
+      entity: input_number.array_free_gb
+      name: Array free
+      unit: GB
+      min: 0
+      max: 4500
+      severity:
+        red: 0
+        yellow: 150
+        green: 400
+    - type: entities
+      title: Unraid array
+      entities:
+      - entity: input_number.array_free_gb
+        name: Free space
+      - entity: input_number.array_used_percent
+        name: Used
+      - entity: input_datetime.array_last_seen
+        name: Checked
+  - type: grid
+    cards:
+    - type: history-graph
+      title: Array free space (GB)
+      hours_to_show: 720
+      entities:
+      - entity: input_number.array_free_gb
+        name: Free
+    - type: custom:uptime-card
+      title_template: Unraid flash
+      entity: binary_sensor.backup_flash_healthy
+      hours_to_show: 168
+      icon: mdi:usb-flash-drive
+      severity: 10
+      update_interval: 300
+      title_adaptive_color: false
+      status_adaptive_color: true
+      icon_adaptive_color: false
+      tooltip_adaptive_color: true
+      alias:
+        ok: Backed up
+        ko: Failing
+- title: VM
+  path: vm
+  icon: mdi:server
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: gauge
+      entity: input_number.vm_disk_used_percent
+      name: VM disk
+      unit: '%'
+      min: 0
+      max: 100
+      severity:
+        green: 0
+        yellow: 80
+        red: 90
+    - type: entities
+      title: VM host
+      entities:
+      - entity: input_number.vm_disk_free_gb
+        name: Disk free
+      - entity: input_number.vm_disk_used_percent
+        name: Disk used
+      - entity: input_datetime.vm_disk_last_seen
+        name: Disk checked
+      - type: section
+        label: Container images
+      - entity: input_number.container_updates_count
+        name: Updates available
+  - type: grid
+    cards:
+    - type: history-graph
+      title: VM disk used (%)
+      hours_to_show: 720
+      entities:
+      - entity: input_number.vm_disk_used_percent
+        name: Root filesystem
+    - type: entities
+      title: Container images
+      entities:
+      - entity: input_number.container_updates_count
+        name: Updates available
+- title: Batteries
+  path: batteries
+  icon: mdi:battery-70
+  type: sections
+  max_columns: 2
+  sections:
+  - type: grid
+    cards:
+    - type: custom:battery-state-card
+      title: Batteries
+      filter:
+        include:
+        - name: attributes.device_class
+          value: battery
+        exclude:
+        - name: display.platform
+          value: mobile_app
+      sort:
+        by: state
+      collapse: 5
