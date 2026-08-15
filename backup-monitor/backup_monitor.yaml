@@ -123,8 +123,12 @@ automation:
             - variables:
                 seen_entity: "input_datetime.backup_{{ repeat.item }}_last_seen"
                 ok_entity: "input_datetime.backup_{{ repeat.item }}_last_ok"
-                # float(0) makes a never-set helper read as infinitely old, so a
-                # job that has never once reported is caught rather than skipped.
+                # An input_datetime that has never been written reads as *today
+                # 00:00*, not as unset — so a job that has never reported once
+                # is not flagged immediately, but at 02:00 the next day when it
+                # crosses 26 h. Acceptable: the jobs run 01:00–04:00, so a real
+                # never-ran is caught within a day. float(0) is only a guard
+                # against a genuinely missing attribute.
                 seen_age: >
                   {{ (now().timestamp() - (state_attr(seen_entity, 'timestamp') | float(0))) / 3600 }}
                 ok_age: >
