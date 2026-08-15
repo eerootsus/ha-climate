@@ -45,7 +45,26 @@ input_text:
     name: Backup flash status
     max: 20
 
+input_number:
+  # Recorded rather than merely alerted on, because capacity is a slope, not a
+  # state: HA long-term statistics make "when does this box need upgrading"
+  # directly plottable. BX21 is 5 TB; the upgrade to BX31 (10 TB) is in-place
+  # with data preserved, so lead time is all that's needed.
+  hetzner_box_used_percent:
+    name: Hetzner box used
+    min: 0
+    max: 100
+    step: 0.1
+    unit_of_measurement: "%"
+    mode: box
+
 input_datetime:
+  # Capacity check has its own heartbeat, so a monitor that quietly stops
+  # reporting doesn't leave a reassuring stale number on the dashboard.
+  hetzner_capacity_last_seen:
+    name: Hetzner capacity last seen
+    has_date: true
+    has_time: true
   backup_media_last_seen:
     name: Backup media last seen
     has_date: true
@@ -171,6 +190,66 @@ automation:
                     interruption-level: time-sensitive
                   tag: "backup-silent-{{ repeat.item }}"
 
+  - id: hetzner_capacity_report
+    alias: Backup - Hetzner box capacity report
+    description: >
+      Daily fill level from the VM. Separate webhook from the job reports
+      because the payload means something different — a measurement, not a
+      run outcome — and mixing them would put a non-job through the
+      last_seen/last_ok machinery.
+    mode: queued
+    max: 5
+    trigger:
+      - platform: webhook
+        webhook_id: b0c29d7b2562debe49a4c281de74156e8b98e9ab683db38b
+        local_only: true
+        allowed_methods: [POST]
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hetzner_box_used_percent
+        data:
+          value: "{{ trigger.json.used_percent | float(0) }}"
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.hetzner_capacity_last_seen
+        data:
+          timestamp: "{{ now().timestamp() }}"
+
+  - id: hetzner_capacity_warn
+    alias: Backup - Hetzner box filling up
+    description: >
+      A full box does not degrade gracefully: borg and rsync simply start
+      failing, so without this the first symptom would be a 4am failure alert.
+      Crossing-based, so it fires on the way up rather than nagging; the daily
+      recap carries the reminder from then on.
+    mode: single
+    trigger:
+      - platform: numeric_state
+        entity_id: input_number.hetzner_box_used_percent
+        above: 85
+        id: plan
+      - platform: numeric_state
+        entity_id: input_number.hetzner_box_used_percent
+        above: 92
+        id: act
+    action:
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: >
+            Hetzner box {{ states('input_number.hetzner_box_used_percent') }}% full
+          message: >
+            {% if trigger.id == 'act' %}
+              Upgrade now — BX21 5 TB is nearly gone. BX31 (10 TB, ~€20.80) is
+              an in-place upgrade, data preserved.
+            {% else %}
+              Time to plan the BX31 upgrade; still room, but the trend is one way.
+            {% endif %}
+          data:
+            push:
+              interruption-level: time-sensitive
+            tag: hetzner-capacity
+
   - id: backup_daily_recap
     alias: Backup - daily recap of anything unhealthy
     description: >
@@ -196,6 +275,17 @@ automation:
                                          ~ ', last good run ' ~ (age | round(0)) ~ ' h ago' ] %}
               {% endif %}
             {% endfor %}
+            {# Capacity rides along: the crossing alert fires once, this keeps
+               reminding until it is dealt with. #}
+            {% set pct = states('input_number.hetzner_box_used_percent') | float(0) %}
+            {% if pct >= 85 %}
+              {% set ns.p = ns.p + [ 'Hetzner box ' ~ pct ~ '% full — upgrade to BX31' ] %}
+            {% endif %}
+            {% set cap_seen = state_attr('input_datetime.hetzner_capacity_last_seen', 'timestamp') | float(0) %}
+            {% set cap_age = (now().timestamp() - cap_seen) / 3600 %}
+            {% if cap_age > 26 %}
+              {% set ns.p = ns.p + [ 'capacity check silent for ' ~ (cap_age | round(0)) ~ ' h' ] %}
+            {% endif %}
             {{ ns.p | join('; ') }}
       - condition: template
         value_template: "{{ problems | length > 0 }}"
