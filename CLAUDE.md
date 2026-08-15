@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HA Climate is a Home Assistant PyScript helper for Danfoss eTRV0103 Zigbee thermostatic radiator valves (TRVs). It publishes per-room weighted virtual temperature/humidity sensors from external sensors. Heating control itself is handled by **Better Thermostat** (see `BETTER_THERMOSTAT.md`), which consumes these sensors; this script no longer writes to the TRVs.
+`ha-kodu24` is the Home Assistant config repo for the house (renamed from `ha-climate` 2026-08-15 — it outgrew climate). Everything here deploys as HA packages copied into `config/` and `!include`d under `homeassistant: packages:`, or as pyscript modules. Alongside the climate work below it holds `battery-monitor/` (battery levels and safety-device alerts) and `backup-monitor/` (push alerts for the off-site backups defined in the `unraid` repo). New general HA housekeeping belongs here rather than in a new repo.
+
+The climate half is a PyScript helper for Danfoss eTRV0103 Zigbee thermostatic radiator valves (TRVs). It publishes per-room weighted virtual temperature/humidity sensors from external sensors. Heating control itself is handled by **Better Thermostat** (see `BETTER_THERMOSTAT.md`), which consumes these sensors; this script no longer writes to the TRVs.
 
 ## Setup & Deployment
 

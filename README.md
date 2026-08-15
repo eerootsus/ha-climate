@@ -1,8 +1,21 @@
-# HA Climate
+# ha-kodu24
+
+Home Assistant configuration for the house. It began as climate control alone,
+which is why most of it is still TRVs, and now also carries the general
+housekeeping packages that have nowhere better to live:
+
+- **`trv-climate/` + `danfoss.py`** — pyscript climate sensors for Danfoss
+  TRVs (documented below). Heating control itself belongs to Better Thermostat.
+- **`battery-monitor/`** — weekly battery nudge, plus immediate alerts for
+  safety devices.
+- **`backup-monitor/`** — push alerts for the off-site backups running on
+  `alpine-docker`. The backup jobs themselves live in the `unraid` repo.
+
+## Climate
 
 Pyscript-based climate control for Danfoss TRVs in Home Assistant.
 
-## Features
+### Features
 
 - Reads temperature from Danfoss eTRV0103 climate entities
 - Creates virtual room temperature sensors (weighted average when multiple TRVs per room)
