@@ -8,20 +8,62 @@
 # template entities).
 
 # ---------------------------------------------------------------------------
-# 1. Uptime strip — the closest built-in equivalent to an Uptime Kuma card.
-#    binary_sensor + device_class problem draws as bands: clear while healthy,
-#    coloured where it broke. A week reads well; 30 days also works.
+# 1. Uptime strips — custom:uptime-card (HACS), the same card the Network view
+#    already uses for internet access, so backups read the same way as
+#    everything else there.
+#
+#    Polarity note: uptime-card treats `on` as OK, which is why the template
+#    binary_sensors are healthy=on rather than device_class problem — the
+#    latter would invert every strip.
 # ---------------------------------------------------------------------------
-type: history-graph
-title: Backup uptime
+type: custom:uptime-card
+title_template: Media mirror
+entity: binary_sensor.backup_media_healthy
 hours_to_show: 168
-entities:
-  - entity: binary_sensor.backup_media_problem
-    name: Media mirror
-  - entity: binary_sensor.backup_borg_problem
-    name: Borg (precious)
-  - entity: binary_sensor.backup_flash_problem
-    name: Unraid flash
+icon: mdi:filmstrip
+severity: 10
+update_interval: 300
+title_adaptive_color: false
+status_adaptive_color: true
+icon_adaptive_color: false
+tooltip_adaptive_color: true
+alias:
+  ok: Backed up
+  ko: Failing
+
+---
+
+type: custom:uptime-card
+title_template: Borg (precious)
+entity: binary_sensor.backup_borg_healthy
+hours_to_show: 168
+icon: mdi:shield-lock
+severity: 10
+update_interval: 300
+title_adaptive_color: false
+status_adaptive_color: true
+icon_adaptive_color: false
+tooltip_adaptive_color: true
+alias:
+  ok: Backed up
+  ko: Failing
+
+---
+
+type: custom:uptime-card
+title_template: Unraid flash
+entity: binary_sensor.backup_flash_healthy
+hours_to_show: 168
+icon: mdi:usb-flash-drive
+severity: 10
+update_interval: 300
+title_adaptive_color: false
+status_adaptive_color: true
+icon_adaptive_color: false
+tooltip_adaptive_color: true
+alias:
+  ok: Backed up
+  ko: Failing
 
 ---
 
@@ -78,7 +120,7 @@ chart_type: line
 entities:
   - entity: sensor.hetzner_box_used
     name: Box total (TB)
-  - entity: sensor.hetzner_media_mirror_size
+  - entity: sensor.hetzner_media_mirror
     name: Media mirror (TB)
 
 ---
@@ -95,7 +137,7 @@ stat_types:
   - max
 chart_type: line
 entities:
-  - entity: sensor.hetzner_borg_repo_size
+  - entity: sensor.hetzner_borg_repo
     name: Borg repo (GB)
 
 ---

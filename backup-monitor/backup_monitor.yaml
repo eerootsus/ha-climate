@@ -141,32 +141,30 @@ template:
         state_class: measurement
 
   - binary_sensor:
-      # Uptime strips. input_text renders as words; a binary_sensor with
-      # device_class problem draws as bands in a history graph — green while
-      # healthy, red where it broke — which is the shape you actually read.
+      # Uptime strips for the custom:uptime-card already used on the Network
+      # dashboard. Polarity matters: that card treats `on` as OK by default
+      # (matching the internet-access card), so these are healthy=on. Using
+      # device_class problem instead would invert every strip.
       # "Healthy" deliberately means both status ok AND a success within 26 h,
       # so a job frozen on a stale ok cannot show green forever.
-      - name: Backup media problem
-        unique_id: backup_media_problem
-        device_class: problem
+      - name: Backup media healthy
+        unique_id: backup_media_healthy
         state: >
-          {{ not (states('input_text.backup_media_status') == 'ok'
+          {{ (states('input_text.backup_media_status') == 'ok'
                   and (now().timestamp()
                        - (state_attr('input_datetime.backup_media_last_ok', 'timestamp') | float(0))) < 93600) }}
 
-      - name: Backup borg problem
-        unique_id: backup_borg_problem
-        device_class: problem
+      - name: Backup borg healthy
+        unique_id: backup_borg_healthy
         state: >
-          {{ not (states('input_text.backup_borg_status') == 'ok'
+          {{ (states('input_text.backup_borg_status') == 'ok'
                   and (now().timestamp()
                        - (state_attr('input_datetime.backup_borg_last_ok', 'timestamp') | float(0))) < 93600) }}
 
-      - name: Backup flash problem
-        unique_id: backup_flash_problem
-        device_class: problem
+      - name: Backup flash healthy
+        unique_id: backup_flash_healthy
         state: >
-          {{ not (states('input_text.backup_flash_status') == 'ok'
+          {{ (states('input_text.backup_flash_status') == 'ok'
                   and (now().timestamp()
                        - (state_attr('input_datetime.backup_flash_last_ok', 'timestamp') | float(0))) < 93600) }}
 
