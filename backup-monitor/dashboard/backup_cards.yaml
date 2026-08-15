@@ -212,3 +212,31 @@ hours_to_show: 720
 entities:
   - entity: input_number.vm_disk_used_percent
     name: Root filesystem
+
+---
+
+# ---------------------------------------------------------------------------
+# 9. Unraid array — the storage everything irreplaceable actually lives on.
+#    Gauge is inverted relative to the others: it shows FREE GB, because that
+#    is the number that decides whether the next download fits. Severity bands
+#    are the alert thresholds (400 plan / 150 act), so green shrinks as the
+#    array fills rather than the reverse.
+# ---------------------------------------------------------------------------
+type: entities
+title: Unraid array
+entities:
+  - entity: input_number.array_free_gb
+    name: Free space
+  - entity: input_number.array_used_percent
+    name: Used
+  - entity: input_datetime.array_last_seen
+    name: Checked
+
+---
+
+type: history-graph
+title: Array free space (GB)
+hours_to_show: 720
+entities:
+  - entity: input_number.array_free_gb
+    name: Free

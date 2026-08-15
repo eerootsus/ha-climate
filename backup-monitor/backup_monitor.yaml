@@ -93,6 +93,23 @@ input_number:
     step: 0.1
     unit_of_measurement: GB
     mode: box
+  # The Unraid array. Alerts key off FREE SPACE, not percent: one UHD remux is
+  # 30-80 GB, so "90% full" on a 4.5 TB array is a different statement from 90%
+  # on a 100 GB disk. What matters is whether the next film still fits.
+  array_free_gb:
+    name: Array free GB
+    min: 0
+    max: 20000
+    step: 0.1
+    unit_of_measurement: GB
+    mode: box
+  array_used_percent:
+    name: Array used
+    min: 0
+    max: 100
+    step: 0.1
+    unit_of_measurement: "%"
+    mode: box
   container_updates_count:
     name: Container updates available
     min: 0
@@ -109,6 +126,10 @@ input_datetime:
     has_time: true
   vm_disk_last_seen:
     name: VM disk last seen
+    has_date: true
+    has_time: true
+  array_last_seen:
+    name: Array capacity last seen
     has_date: true
     has_time: true
   backup_media_last_seen:
@@ -427,6 +448,64 @@ automation:
             push: {interruption-level: time-sensitive}
             tag: vm-disk
 
+  - id: array_capacity_report
+    alias: Backup - Unraid array capacity report
+    description: >
+      Daily array reading, taken from the VM's 9p view of /mnt/unraid rather
+      than from Unraid itself, whose rootfs is tmpfs and would need the go file
+      for cron.
+    mode: queued
+    max: 5
+    trigger:
+      - platform: webhook
+        webhook_id: 4600bd0b290c716da32c31f2196303f757dca9cd55d801ef
+        local_only: true
+        allowed_methods: [POST]
+    action:
+      - service: input_number.set_value
+        target: {entity_id: input_number.array_free_gb}
+        data: {value: "{{ trigger.json.free_gb | float(0) }}"}
+      - service: input_number.set_value
+        target: {entity_id: input_number.array_used_percent}
+        data: {value: "{{ trigger.json.used_percent | float(0) }}"}
+      - service: input_datetime.set_datetime
+        target: {entity_id: input_datetime.array_last_seen}
+        data: {timestamp: "{{ now().timestamp() }}"}
+
+  - id: array_capacity_warn
+    alias: Backup - Unraid array filling up
+    description: >
+      Thresholds in GB, not percent. 400 GB is roughly five UHD remuxes of
+      headroom — enough time to act. 150 GB means the next few downloads will
+      not fit, and parity rebuilds want slack too. The array sat at 90% / 467 GB
+      when this was written, so the first alert is genuinely imminent.
+    mode: single
+    trigger:
+      - platform: numeric_state
+        entity_id: input_number.array_free_gb
+        below: 400
+        id: plan
+      - platform: numeric_state
+        entity_id: input_number.array_free_gb
+        below: 150
+        id: act
+    action:
+      - service: notify.mobile_app_eeros_iphone_17
+        data:
+          title: >
+            Array {{ states('input_number.array_free_gb') }} GB free ({{ states('input_number.array_used_percent') }}%)
+          message: >
+            {% if trigger.id == 'act' %}
+              Nearly out — the next UHD download will not fit, and parity wants
+              slack. The 3x4 TB drives are already here; this is the migration.
+            {% else %}
+              About five UHD remuxes of headroom left. Time to schedule the
+              array swap rather than discover it mid-download.
+            {% endif %}
+          data:
+            push: {interruption-level: time-sensitive}
+            tag: array-capacity
+
   - id: container_updates_report
     alias: Backup - container image updates
     description: >
@@ -499,6 +578,16 @@ automation:
             {% if vm_pct >= 80 %}
               {% set ns.p = ns.p + [ 'VM disk ' ~ vm_pct ~ '% full, '
                                      ~ states('input_number.vm_disk_free_gb') ~ ' GB free' ] %}
+            {% endif %}
+            {% set arr_free = states('input_number.array_free_gb') | float(9999) %}
+            {% if arr_free < 400 %}
+              {% set ns.p = ns.p + [ 'array ' ~ arr_free ~ ' GB free ('
+                                     ~ states('input_number.array_used_percent') ~ '%)' ] %}
+            {% endif %}
+            {% set arr_seen = state_attr('input_datetime.array_last_seen', 'timestamp') | float(0) %}
+            {% set arr_age = (now().timestamp() - arr_seen) / 3600 %}
+            {% if arr_age > 26 %}
+              {% set ns.p = ns.p + [ 'array check silent for ' ~ (arr_age | round(0)) ~ ' h' ] %}
             {% endif %}
             {% set vm_seen = state_attr('input_datetime.vm_disk_last_seen', 'timestamp') | float(0) %}
             {% set vm_age = (now().timestamp() - vm_seen) / 3600 %}
